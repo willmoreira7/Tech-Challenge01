@@ -6,7 +6,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-.github/
+.github/agents
 
 # C extensions
 *.so
@@ -124,14 +124,19 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
-.env
+# Virtual Environments (Padrão: venv/)
+venv/
 .venv
 env/
-venv/
 ENV/
-env.bak/
 venv.bak/
+env.bak/
+
+# Environment Variables
+.env
+.env.local
+.env.development
+.env.production
 
 # Spyder project settings
 .spyderproject
