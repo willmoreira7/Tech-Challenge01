@@ -1,0 +1,15 @@
+{
+  "name": "tech-challenge-ml",
+  "version": "1.0.0",
+  "description": "Tech Challenge - ML Project with Conventional Commits",
+  "private": true,
+  "devDependencies": {
+    "@commitlint/cli": "^19.8.1",
+    "@commitlint/config-conventional": "^19.8.1",
+    "husky": "^9.1.7"
+  },
+  "scripts": {
+    "commitlint": "commitlint --edit",
+    "prepare": "husky"
+  }
+}

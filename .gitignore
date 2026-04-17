@@ -448,3 +448,21 @@ raw_datasets/
 exp_*/
 experiment_*/
 tmp_exp/
+
+# =====================================================
+# 🟢 NODE.JS / NPM (Git Hooks & Conventional Commits)
+# =====================================================
+
+# Node modules
+node_modules/
+npm-debug.log
+npm-error.log
+yarn-error.log
+yarn-debug.log
+
+# Package lock files
+package-lock.json
+yarn.lock
+
+# Husky git hooks
+.husky/_/husky.sh
