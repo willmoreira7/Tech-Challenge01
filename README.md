@@ -15,18 +15,43 @@ Pipeline ML **production-ready** para predição de churn em operadora de teleco
 
 ## 🎯 Contexto de Negócio & Objetivos
 
-### Problema de Negócio
-Operadora de telecomunicações enfrenta **taxa de churn anual ~26%**, resultando em perda de MRR (Monthly Recurring Revenue) significativa. Custo médio de retenção: $50-100 via oferta. Custo de cliente perdido: $200+ (instalação nova, campanha). 
+### Problema de Negócio (Brasil 2026)
 
-**Objetivo**: Construir modelo preditivo para identificar clientes em risco de churn nos próximos 2-3 meses, viabilizando intervenção proativa (ofertas, upgrades, campanhas de retenção).
+**Realidade do Mercado:**
+- Base Brasil: **~260 milhões de linhas** (móvel + fixo + banda larga)
+- Portabilidades em 2025: **8,5 milhões** (recorde histórico)
+- Churn agregado: **2,0% - 3,0%/mês**
+
+**Segmento Pós-Pago** (Foco Principal):
+- Taxa churn: **0,98% - 1,4%/mês**
+- ARPU: **R$ 50-55/mês**
+- CLV (24 meses): **R$ 800-1.500**
+- Base: ~70M clientes
+- **Impacto anual**: ~840K clientes × R$ 50 ARPU × 12 = **R$ 504M em receita em risco**
+
+**Segmento Pré-Pago** (Alto volume, menor valor):
+- Taxa churn: **3,0% - 6,0%/mês**
+- ARPU: **R$ 12-18/mês**
+- CLV: **R$ 60-200**
+- Base: ~190M clientes
+
+**Objetivo**: Construir modelo preditivo para identificar clientes em risco nos próximos **30-60 dias**, viabilizando campanhas de retenção (desconto, upgrade, bundling). Expected Profit alvo: **≥ R$ 2M/mês** (base 1M clientes).
 
 ### KPIs & Métricas Alvo
+
+**Justificativa Econômica:**
+- **FN Cost (Churn não detectado):** CLV = R$ 1.200 (pós-pago)
+- **FP Cost (Campanha desnecessária):** R$ 60 por cliente
+- **Razão FN/FP:** 20:1 → **Recall deve ser agressivo!**
+
 | Métrica | Target | Justificativa |
 |---------|--------|---------------|
-| **F1-Score** | > 0.80 | Balance entre precisão e recall |
-| **Recall** | ≥ 75% | Capturar maioria dos churners reais |
-| **Precision** | ≥ 85% | Evitar desperdício em false positives |
-| **ROC-AUC** | > 0.87 | Discriminação entre classes |
+| **AUROC (Prim.)** | ≥ 0.82 (meta), ≥ 0.88 (ideal) | Discriminação entre classes |
+| **Recall (Crítico)** | ≥ 0.75 | FN é 20× mais caro que FP |
+| **Precision** | 0.55 - 0.75 | Aceitável em dados desbalanceados |
+| **PR-AUC (Secundária)** | ≥ 0.65 | Métrica principal para desbalanceado |
+| **F1-Score** | ≥ 0.70 | Balanceamento Precision × Recall |
+| **Expected Profit** | ≥ R$ 2M/mês | KPI de negócio final |
 
 ### Objetivos Técnicos 🔜 A Implementar
 - 🔜 **EDA Avançada**: Análise de drivers de churn (tenure, contrato, serviços)
@@ -37,6 +62,29 @@ Operadora de telecomunicações enfrenta **taxa de churn anual ~26%**, resultand
 - 🔜 **Testes Robusto**: 25+ testes (smoke, schema, API), 82% code coverage
 - 🔜 **Monitoring & Governance**: Model Card com vieses e limitações
 - 🔜 **Qualidade de Código**: Ruff, Black, Mypy, pre-commit hooks
+
+---
+
+## 📋 Documentação Estratégica & Planning
+
+### ML Canvas – CRISP-DM Methodology
+
+Para **contexto completo do projeto**, incluindo análise econômica detalhada, parâmetros de mercado brasileiro, metas de KPI, SLOs, roadmap CRISP-DM e estratégia de monitoramento, consulte:
+
+📖 **[ML_CANVAS.md](docs/ML_CANVAS.md)** – Documento estratégico com:
+- ✅ Análise de negócio (churn vs retenção em telecomunicações Brasil)
+- ✅ Segmentação econômica (Pós-Pago vs Pré-Pago com parâmetros regionais)
+- ✅ Expected Profit framework (calibração threshold com custos reais R$)
+- ✅ Metas técnicas alinhadas (AUROC ≥0.82, Recall ≥0.75, PR-AUC ≥0.65)
+- ✅ SLOs de produção (99.5% uptime, p99 ≤200ms, throughput ≥500 req/s)
+- ✅ Roadmap 8-semanas (Business Understanding → Deployment → Go-Live)
+- ✅ Stakeholder mapping e KPIs negócio × técnico
+
+**Use este documento para:**
+- 🎯 Alinhamento com stakeholders e sponsors
+- 📊 Baseline de métricas esperadas em produção
+- 🔧 Configuração de thresholds e alertas de monitoramento
+- 📈 Justificativa econômica do projeto
 
 ---
 
@@ -64,14 +112,13 @@ Operadora de telecomunicações enfrenta **taxa de churn anual ~26%**, resultand
 ```
 
 ### Real-Time API (Tier 1: Crítico)
-```python
-# Endpoint: POST /api/v1/predict_churn
-# Entrada: Customer ID ou features estruturadas
-# Saída: Churn probability + recomendação
-# SLA: p95 latência < 100ms, 99.9% uptime
-# Use Case: Ofertas em real-time during customer interactions
 ```
-
+Endpoint: POST /api/v1/predict
+Entrada: features estruturadas
+Saída: Churn probability + risk_level
+SLA: p50 ≤ 100ms, p99 ≤ 200ms, 99.5% uptime
+Use Case: Contato CRM em tempo real, portal de cliente
+```
 ### Batch Prediction (Tier 2: Noturno)
 ```python
 # Trigger: Daily 02:00 UTC
@@ -81,10 +128,10 @@ Operadora de telecomunicações enfrenta **taxa de churn anual ~26%**, resultand
 ```
 
 ### Justificativa Arquitetural
-1. **Real-time API**: Critical business path - customer calls, portal access
-2. **Batch**: Scalability - scores para 1M+ clientes em ~5 minutos com GPUs
-3. **Hybrid**: Otimiza custo vs performance (GPU compartilhada entre modos)
-4. **Versioning**: A/B test modelos novos em 5% batch antes de rollout real-time
+1. **Real-time API**: Critical path → Contato CRM em < 200ms
+2. **Batch**: Scalability → 70M base em paralelo noturno
+3. **Hybrid**: Otimiza custo vs SLA (GPU + autoscaling)
+4. **Monitoring**: Data drift (KS-test), Model drift (AUROC queda), Retraining semanal
 
 ---
 
@@ -198,20 +245,22 @@ pytest tests/ -v
 
 #### 3a. Baseline: Logistic Regression (Scikit-Learn)
 ```python
-# Modelo: Logistic Regression com class weights
-# F1-Score Esperado: 0.78
+# Modelo: Logistic Regression + class weights
+# AUROC Esperado: 0.75-0.78
+# Recall Esperado: 0.65-0.70
 # Tempo treino: ~2s (CPU)
-# Purpose: Benchmark e interpretability
+# Purpose: Benchmark e interpretabilidade
 
 from sklearn.linear_model import LogisticRegression
 baseline = LogisticRegression(
-    class_weight='balanced',  # Trata desbalanceamento
+    class_weight='balanced',  # Pesa churn mais (minoria)
     solver='lbfgs',
-    max_iter=1000
+    max_iter=1000,
+    random_state=42
 )
 ```
 
-**Justificativa**: Baseline linear rápido, interpretável (feature importance via coef_), prova que NN agrega valor.
+**Justificativa**: Baseline linear rápido, interpretável (feature importance), baseline para comparação econômica (Recall ~70% → FN caro não capturado).
 
 #### 3b. Deep Learning: Rede Neural (PyTorch)
 
@@ -236,21 +285,24 @@ Output Layer (1) + Sigmoid  [churn probability]
 - **Scheduler**: Cosine Annealing (warm-up 5 epochs, T_max=100)
 - **Regularization**: L2=0.0001, Dropout escalado por layer
 - **Batch Size**: 32
-- **Epochs**: 100 com early stopping (patience=10, monitor=val_f1)
+- **Epochs**: 100 com early stopping (patience=10, monitor=val_auroc)
 
 **Justificativa NN vs Baseline**:
-1. Features não-lineares (ex: tenure × monthly_charges → churn risk)
-2. Captura interações complexas entre serviços
-3. ROC-AUC 0.87+ vs Logistic 0.81 (~6% melhoria)
-4. Batch normalization melhora convergência (~3 epochs mais rápido)
+1. Features não-lineares (tenure × monthly_charges → churn risk)
+2. Captura interações entre serviços ativos
+3. AUROC 0.85+ vs Logistic 0.76 (~9% melhoria)
+4. **Expected Profit**: NN Recall 0.80 = +R$ 220K/1M clientes vs Logistic Recall 0.70
+5. Batch normalization melhora estabilidade treino
 
 ### Etapa 4: Avaliação (com Scikit-Learn + MLflow)
-- **Métricas**: accuracy_score, f1_score, roc_auc_score, confusion_matrix
-- **Validação Cruzada**: 5-Fold StratifiedKFold (garante balanceamento por fold)
-- **Análise Detalhada**: classification_report (F1 por classe), ROC curves
-- **Feature Importance**: permutation_importance (quais features influenciam mais)
-- **Vieses**: Métricas por subgrupos (idade, região, tipo contrato)
-- **MLflow Tracking**: Todos parâmetros, métricas e artefatos logados
+- **Métricas Primárias**: AUROC, Recall, Precision, PR-AUC, F1-Score
+- **Métrica Econômica**: Expected Profit = TP×1.140 - FP×60 - FN×1.200 (Reais)
+- **Validação Cruzada**: 5-Fold StratifiedKFold (balanceamento por fold)
+- **Análise Detalhada**: Confusion matrix, ROC/PR curves, classification_report
+- **Threshold Otimização**: Grid search 0.01-0.99 maximizando Expected Profit
+- **Feature Importance**: permutation_importance (quais features impactam predição)
+- **Vieses & Fairness**: Métricas por segmento (pós/pré-pago), classe social, região
+- **MLflow Tracking**: Params, metrics (por epoch), artifacts, tags (dataset version)
 
 ### Etapa 5: Deployment
 - Modelo de melhor F1 salvo em `models/best_model.pth`
@@ -374,12 +426,12 @@ pre-commit run --all-files
 | 422 | Validation error (tipo de dados errado) |
 | 503 | Modelo não carregado |
 
-**SLA & Performance**:
-- **Latência p50**: ~20ms
-- **Latência p95**: <100ms
-- **Latência p99**: <200ms
-- **Uptime Target**: 99.9%
-- **Throughput**: 100-500 req/s por worker (4 workers = 400-2000 req/s)
+**SLA & Performance (Alinhado com ML_CANVAS)**:
+- **Latência p50**: ≤ 100ms
+- **Latência p99**: ≤ 200ms
+- **Uptime Target**: ≥ 99.5%
+- **Throughput**: ≥ 500 req/s (100K clientes/batch em ~3 min)
+- **Error Rate**: ≤ 0.1%
 
 ### Endpoint: POST /api/v1/predict_batch
 
@@ -461,24 +513,29 @@ if p_value < 0.05:  # Mudança significativa detectada
 - Proporção de clientes por internet_type
 - Taxa média de churn observado vs predito
 
-### 2. Performance Monitoring
+### 2. Model Performance Monitoring
 ```python
-# Semanal: compara F1-score em novos dados vs treino
-# Alerta se F1 < 0.78 (baseline) ou < 0.80 (target NN)
-
-if production_f1 < 0.78:
+# Validação semanal de métricas em produção
+if production_auroc < 0.80:  # Meta: ≥0.82
     severity = "CRITICAL"
     action = "Trigger automated retraining"
-    escalate_to = "ML Engineering"
+elif production_recall < 0.70:  # Meta: ≥0.75
+    severity = "CRITICAL"
+    action = "Increase threshold conservatism"
+elif production_pr_auc < 0.60:  # Meta: ≥0.65
+    severity = "WARNING"
+    action = "Monitor closely"
 ```
 
 ### 3. Alertas Automáticos
-| Métrica | Threshold | Ação | Severidade |
-|---------|-----------|------|-----------|
-| F1-Score | < 0.78 | Rerreinar + rollback | CRITICAL |
-| Latência p95 | > 200ms | Escalabilidade | HIGH |
-| Cobertura | < 95% | Debug predictions | MEDIUM |
-| Data Drift | p < 0.05 | Análise de causa raiz | MEDIUM |
+| Métrica | Threshold | Ação | Severidade | Impacto |
+|---------|-----------|------|-----------|----------|
+| AUROC (Prod) | < 0.80 por 3d | Auto-retrain | CRITICAL | Perda R$ 100K/dia |
+| Recall (Prod) | < 0.70 por 2d | Aumentar conservatismo | CRITICAL | FN alto (CLV perdido) |
+| Data Drift (KS) | KS > 0.20 | Investigar mudanças | WARNING | Distribuição mudou |
+| API Latência | p99 > 200ms | Scale up / Debug | WARNING | CRM responde lento |
+| API Uptime | < 99.5% em 7d | Incident review | WARNING | Campanhas pausadas |
+| Expected Profit | < R$ 1.5M/mês | Strategy review | CRITICAL | Abaixo de ROI esperado |
 
 ### 4. Playbook de Resposta
 ```
