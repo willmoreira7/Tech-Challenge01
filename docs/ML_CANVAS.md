@@ -32,6 +32,11 @@
 
 ### 1.2 Problema de Negócio Específico
 
+> **Referência de Siglas:**
+> - **ARPU:** Average Revenue Per User (Receita Média por Usuário/mês)
+> - **CLV:** Customer Lifetime Value (Valor Presente do Cliente ao longo da vida)
+> - **SAC:** Sales Acquisition Cost (Custo de Aquisição de Novo Cliente)
+
 Uma operadora de telecomunicações brasileira enfrenta:
 
 **Segmento Pós-Pago:**
@@ -60,7 +65,7 @@ CLV perdido = 840.000 × R$ 1.200 = R$ 1.008 bilhões!
 **Desafio Crítico:**
 Identificar **proativamente** clientes em risco nos próximos **30-60 dias** para viabilizar campanhas de retenção (desconto, upgrade, bundling), evitando portabilidades e churn.
 
-### 1.3 Métrica Central: Expected Profit
+### 1.3 Métrica Central: Lucro Esperado
 
 O modelo será avaliado via **Lucro Esperado**, que consolida performance técnica com realidade econômica brasileira:
 
@@ -87,39 +92,53 @@ $$\text{Taxa} = \frac{\text{Prejuízo}_{\text{FN}}}{\text{Custo}_{\text{FP}}} = 
 
 ---
 
+### 1.4 Métrica Técnica Derivada: RECALL ≥ 75%
+
+> **Conexão Negócio ↔ Técnico**
+>
+> Da análise de Lucro Esperado acima, deriva-se a **métrica técnica PRIMARY**:
+> - Para maximizar EP, minimizamos FN (Falsos Negativos)
+> - Minimizar FN = **Maximizar Recall** (TP / (TP + FN))
+> - Mathematicamente: `Threshold ótimo ≈ 5%` implica **Recall ≥ 75%** obrigatório
+> - Então: **O modelo será otimizado e treinado com Recall ≥ 75% como objetivo primário**
+>
+> Ver detalhes em **[Seção 5.0 - Métrica Técnica PRIMARY: RECALL](##-50--métrica-técnica-primary-recall)**.
+
+---
+
 ## 2. Stakeholders e Governança
 
 ### 2.1 Mapa de Stakeholders
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    STAKEHOLDERS MAP                           │
+│                    STAKEHOLDERS MAP                          │
 ├──────────────────────────────────────────────────────────────┤
-│                                                                │
+│                                                              │
 │  SPONSOR        │  VP de Receita / Diretor Executivo         │
-│  ├─ Objetivo: Reduzir churn em -2% (ganho 1.68M clientes)   │
-│  ├─ ROI esperado: ≥ 5:1 em 12 meses                         │
-│  ├─ Budget: R$ 2-5 milhões para implementação               │
-│  └─ SLA: Impacto positivo em 6 meses                        │
-│                                                                │
+│  ├─ Objetivo: Reduzir churn em -2% (ganho 1.68M clientes)    │
+│  ├─ ROI esperado: ≥ 5:1 em 12 meses                          │
+│  ├─ Budget: R$ 2-5 milhões para implementação                │
+│  └─ SLA: Impacto positivo em 6 meses                         │
+│                                                              │
 │  CRM TEAM       │  Gerentes e Analistas de Retenção          │
 │  ├─ Recebem scores de churn diariamente (ranking)            │
-│  ├─ Executam campanhas via SMS/Email/WhatsApp               │
-│  ├─ SLA: Contato em 24h pós-alerta, taxa contato ≥ 80%      │
-│  └─ Feedback loop: Reportar conversão/churn real mensal     │
-│                                                                │
-│  ENGINEERS      │  Data Engineering / MLOps                   │
+│  ├─ Executam campanhas via SMS/Email/WhatsApp                │
+│  ├─ SLA: Contato em 24h pós-alerta, taxa contato ≥ 80%       │
+│  └─ Feedback loop: Reportar conversão/churn real mensal      │
+│                                                              │
+│  ENGINEERS      │  Data Engineering / MLOps                  │
 │  ├─ Deploy da API FastAPI em produção                        │
-│  ├─ SLA: Uptime ≥ 99.5%, latência p99 ≤ 200ms              │
+│  ├─ SLA: Uptime ≥ 99.5%, latência p99 ≤ 200ms                │
 │  ├─ Monitoramento H24 via Prometheus + DataDog               │
 │  └─ Retrainamento automático semanal                         │
-│                                                                │
-│  DATA TEAM      │  Data Scientists / Analytics Engineers      │
+│                                                              │
+│  DATA TEAM      │  Data Scientists / Analytics Engineers     │
 │  ├─ Desenvolvimento e otimização do modelo                   │
 │  ├─ Feature engineering (20+ features)                       │
 │  ├─ Documentação: Model Card + viés + limitações             │
 │  └─ A/B testing de campanhas vs modelo                       │
-│                                                                │
+│                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -266,6 +285,19 @@ Cenários de Conversão:
 
 ## 5. Metas de Performance Técnica
 
+### 5.0 🎯 Métrica Técnica PRIMARY: RECALL
+
+> **Decisão Estratégica**: O modelo será otimizado para **Recall ≥ 75%** como métrica técnica PRIMARY.
+>
+> **Por quê?** 
+> - Objetivo de negócio é **detectar e reter churners** antes de perderem
+> - Falsos Negativos (churner não detectado) custam **R$ 1.200** (CLV perdido)
+> - Falsos Positivos (campanha desnecessária) custam apenas **R$ 60**
+> - **Taxa FN/FP = 20:1** → Minimizar FN (maximize Recall) é essencial
+> - Matematicamente: `Threshold ótimo ≈ 5%` → Recall agressivo obrigatório
+>
+> **Implicação**: É preferível enviar 100 campanhas (com 25% desnecessárias) para garantir que 75%+ dos verdadeiros churners sejam retidos.
+
 ### 5.1 Critérios de Sucesso (Calibrados para Brasil)
 
 #### **Métrica 1: AUROC (Area Under ROC Curve)**
@@ -394,8 +426,8 @@ else:
 ### 6.1 Matriz de Confusão com Impacto em Reais
 
 ```
-                    │  Predição: Churner  │  Predição: Retentor
-                    │   (Campanh Enviada) │    (Sem Ação)
+                    │  Predição: Churner │  Predição: Retentor
+                    │   (Campanh Enviada)│    (Sem Ação)
 ────────────────────┼────────────────────┼────────────────────
 Real: Churner       │ TP: Lucro R$ 1.140 │ FN: Prejuízo -R$ 1.200
 Real: Retentor      │ FP: Custo -R$ 60   │ TN: Neutro R$ 0
@@ -662,31 +694,31 @@ if auroc_recent < 0.80:  # Queda de 5%
 
 ```
 ┌──────────────────────────────────────────────────┐
-│          ML MODEL MONITORING - BRASIL             │
+│          ML MODEL MONITORING - BRASIL            │
 ├──────────────────────────────────────────────────┤
-│                                                   │
-│  [LIVE METRICS - ÚLTIMAS 24H]:                  │
+│                                                  │
+│  [LIVE METRICS - ÚLTIMAS 24H]:                   │
 │  ├─ AUROC:        0.845 ✅ (Meta: ≥0.82)        │
 │  ├─ Recall:       0.782 ✅ (Meta: ≥0.75)        │
-│  ├─ Precision:    0.671 ✅ (Range: 0.55-0.75)  │
+│  ├─ Precision:    0.671 ✅ (Range: 0.55-0.75)   │
 │  ├─ PR-AUC:       0.682 ✅ (Meta: ≥0.65)        │
-│  ├─ Data Drift:   KS=0.08 ✅ (Limiar: <0.15)  │
-│  ├─ API Uptime:   99.82% ✅ (Meta: ≥99.5%)     │
-│  ├─ Latência p99: 156ms ✅ (Meta: <200ms)      │
-│  └─ Predictions:  284.456/dia (normal)          │
-│                                                   │
-│  [EXPECTED PROFIT - ÚLTIMOS 30 DIAS]:           │
-│  ├─ Total:        R$ 2.18M ✅ (Meta: ≥R$2M)    │
-│  ├─ Avg/día:      R$ 72.7K                      │
-│  └─ Tendência:    ↗ +1.3% vs período anterior  │
-│                                                   │
+│  ├─ Data Drift:   KS=0.08 ✅ (Limiar: <0.15)    │
+│  ├─ API Uptime:   99.82% ✅ (Meta: ≥99.5%)      │
+│  ├─ Latência p99: 156ms ✅ (Meta: <200ms)       │
+│  └─ Predictions:  284.456/dia (normal)           │
+│                                                  │
+│  [EXPECTED PROFIT - ÚLTIMOS 30 DIAS]:            │
+│  ├─ Total:        R$ 2.18M ✅ (Meta: ≥R$2M)     │
+│  ├─ Avg/día:      R$ 72.7K                       │
+│  └─ Tendência:    ↗ +1.3% vs período anterior   │
+│                                                  │
 │  [ALERTAS]:                                      │
-│  🟢 Nenhum alerta ativo                          │
-│                                                   │
-│  [PRÓXIMO RETRAINAMENTO]:                       │
-│  Data: 2026-04-21 (próxima segunda-feira)      │
+│  🟢 Nenhum alerta ativo                         │
+│                                                  │
+│  [PRÓXIMO RETRAINAMENTO]:                        │
+│  Data: 2026-04-21 (próxima segunda-feira)        │
 │  Dias: 5 dias                                    │
-│                                                   │
+│                                                  │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -711,8 +743,8 @@ SEMANA 2-3: DATA PREPARATION
 └─ Train/Val/Test split (70/15/15)
 
 SEMANA 4-5: MODELING
-├─ Baseline: Logistic Regression (target AUROC ≥0.75)
-├─ Main: Gradient Boosting (XGBoost/LightGBM, target AUROC ≥0.85)
+├─ Baseline: DuummyClassifier e Logistic Regression (target AUROC ≥0.75)
+├─ Main: Construção de MLP com PyTorch com early stopping e batching
 ├─ Hyperparameter tuning (Random Search)
 ├─ Threshold otimização via Expected Profit
 └─ MLflow: Comparação de modelos
@@ -721,27 +753,16 @@ SEMANA 5-6: EVALUATION & VALIDATION
 ├─ Validação cruzada (5-fold stratified)
 ├─ Cross-checks econômicos
 ├─ Feature importance + explainability
-├─ Análise de viés (fairness)
 └─ Model Card construction
 
 SEMANA 6-7: DEPLOYMENT
 ├─ Refactoring para produção (clean code)
 ├─ API FastAPI com 3 endpoints
-├─ Dockerização + teste de carga
-├─ Kubernetes YAML (deployment + HPA)
-└─ Setup de monitoramento (Prometheus + Grafana)
+└─ Dockerização
 
-SEMANA 7-8: INTEGRATION & GO-LIVE
-├─ Integração com CRM (Salesforce/similar)
-├─ Setup de alertas (Slack + PagerDuty)
-├─ Treinamento do time CRM
-├─ Canary deploy (5% traffic por 48h)
-└─ Full Deploy + monitoring 24/7
-
-SEMANA 9+: OPERATIONS & MAINTENANCE
+SEMANA 8+: OPERATIONS & MAINTENANCE
 ├─ Monitoramento contínuo
 ├─ Retrainamento semanal (automático)
-├─ A/B testing de campanhas
 └─ Otimização iterativa
 ```
 
