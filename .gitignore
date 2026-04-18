@@ -203,10 +203,11 @@ models/*.safetensors  # Hugging Face format
 !models/.gitkeep      # Mantém diretório no git
 
 # MLflow artifacts e tracking
-mlruns/               # MLflow experiments local
-.mlflow/              # MLflow config
-artifacts/            # Model artifacts
-experiments.db        # MLflow database
+mlruns/
+**/mlruns/
+.mlflow/
+artifacts/
+experiments.db
 
 # Jupyter/Notebook outputs e checkpoints
 *.ipynb_checkpoints/
