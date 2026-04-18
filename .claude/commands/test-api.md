@@ -3,13 +3,24 @@ name: test-api
 description: Executa smoke tests e validações da API FastAPI
 ---
 
-Execute a bateria de testes da API:
+Implemente e execute seguindo **exatamente** `specs/api-predict.md`.
 
-1. Verifique que a API está rodando: `GET /health` deve retornar `{"status": "ok"}`
-2. Smoke test do endpoint principal:
+Se `src/api/` ainda não existir, crie conforme `specs/api-predict.md`:
+- `GET /health` → `{"status": "ok", "model_version": "1.0.0", "uptime_seconds": float}`
+- `POST /predict` → `{"churn_probability": float, "churn_predicted": bool, "model_version": "1.0.0"}`
+- Schema Pydantic `PredictRequest` com validações dos campos (conforme spec)
+- Middleware de latência via structlog
+- Modelo e pipeline carregados no `lifespan` (não por request)
 
+Execute a bateria de testes (conforme `specs/api-predict.md`):
+
+1. `test_health_returns_ok` — `GET /health` → 200
+2. `test_predict_valid_payload` — `POST /predict` com payload completo → 200, `churn_probability` entre 0 e 1
+3. `test_predict_invalid_payload` — payload sem `tenure` → 422
+4. `test_predict_latency` — resposta em < 200ms
+
+Payload de referência para testes:
 ```json
-POST /predict
 {
   "gender": "Male", "SeniorCitizen": 0, "Partner": "Yes", "Dependents": "No",
   "tenure": 12, "PhoneService": "Yes", "MultipleLines": "No",
@@ -21,9 +32,5 @@ POST /predict
 }
 ```
 
-3. Teste de validação Pydantic — envie payload inválido e espere `422`
-4. Teste de campo ausente — remova `tenure` e espere `422`
-5. Verifique que a resposta contém: `churn_probability` (float 0-1) e `churn_predicted` (bool)
-6. Meça latência: p50 deve ser < 100ms
-
-Reporte qualquer falha com o erro exato e o campo problemático.
+SLOs (conforme spec): p50 < 100ms · p99 < 500ms · uptime > 99.5%
+Logging via structlog — sem print().

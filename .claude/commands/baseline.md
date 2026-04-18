@@ -3,6 +3,8 @@ name: baseline
 description: Treina baselines (DummyClassifier + LogisticRegression), registra no MLflow e gera notebook comparativo
 ---
 
+Implemente e execute seguindo **exatamente** `specs/data-loader.md` e `specs/feature-pipeline.md`.
+
 Gere o notebook `notebooks/baselines.ipynb` **standalone** (sem imports de `src/`) seguindo o padrão da aula:
 
 O notebook deve ser autocontido — todo o código inline, sem dependências de `src/`:

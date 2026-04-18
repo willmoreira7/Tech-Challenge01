@@ -3,6 +3,8 @@ name: eda
 description: Executa análise exploratória do dataset de churn
 ---
 
+Implemente e execute seguindo **exatamente** `specs/data-loader.md`.
+
 Execute a EDA completa do projeto de churn:
 
 1. Leia `data/raw/dataset.csv` e verifique: shape, tipos, nulos, duplicatas
