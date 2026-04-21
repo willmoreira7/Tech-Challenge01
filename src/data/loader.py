@@ -6,7 +6,7 @@ import structlog
 log = structlog.get_logger()
 
 RANDOM_SEED = 42
-RAW_PATH = "data/raw/dataset.csv"
+RAW_PATH = "data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv"
 
 
 def load_raw(path: str = RAW_PATH) -> tuple[pd.DataFrame, str]:
