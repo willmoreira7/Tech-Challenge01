@@ -25,6 +25,7 @@
 ### 1.1 Realidade do Mercado Brasileiro 2026
 
 **Context Macro:**
+
 - Base total de clientes Brasil: **~260 milhões de linhas** (móvel+fixo+banda larga)
 - Portabilidades em 2025: **8,5 milhões** (recorde) - fenômeno crítico
 - Churn mensal agregado (Brasil): **2,0% - 3,0%**
@@ -33,6 +34,7 @@
 ### 1.2 Problema de Negócio Específico
 
 > **Referência de Siglas:**
+>
 > - **ARPU:** Average Revenue Per User (Receita Média por Usuário/mês)
 > - **CLV:** Customer Lifetime Value (Valor Presente do Cliente ao longo da vida)
 > - **SAC:** Sales Acquisition Cost (Custo de Aquisição de Novo Cliente)
@@ -40,6 +42,7 @@
 Uma operadora de telecomunicações brasileira enfrenta:
 
 **Segmento Pós-Pago:**
+
 - Churn mensal: **0,98% - 1,4%**
 - ARPU: **R$ 50 - 55/mês**
 - CLV líquido: **R$ 800 - 1.500** (24 meses)
@@ -47,6 +50,7 @@ Uma operadora de telecomunicações brasileira enfrenta:
 - Base estimada: **70 milhões de linhas**
 
 **Segmento Pré-Pago:**
+
 - Churn mensal: **3,0% - 6,0%** (muito maior!)
 - ARPU: **R$ 12 - 18/mês**
 - CLV líquido: **R$ 60 - 200** (muito menor)
@@ -54,6 +58,7 @@ Uma operadora de telecomunicações brasileira enfrenta:
 - Base estimada: **190 milhões de linhas**
 
 **Impacto Financeiro Anual (Base Pós-Pago de 70M):**
+
 ```
 Churn Rate = 1,2% (média)
 Churners/ano = 70M × 0.012 = 840.000 clientes/ano
@@ -63,30 +68,29 @@ CLV perdido = 840.000 × R$ 1.200 = R$ 1.008 bilhões!
 ```
 
 **Desafio Crítico:**
-Identificar **proativamente** clientes em risco nos próximos **30-60 dias** para viabilizar campanhas de retenção (desconto, upgrade, bundling), evitando portabilidades e churn.
+Identificar **proativamente** clientes em risco de cancelamento nos próximos **30-60 dias** para viabilizar campanhas de retenção (desconto, upgrade, bundling), evitando portabilidades e churn.
 
 ### 1.3 Métrica Central: Lucro Esperado
 
 O modelo será avaliado via **Lucro Esperado**, que consolida performance técnica com realidade econômica brasileira:
 
-$$\text{EP} = (\text{TP} \times \text{Lucro}_{\text{retenção}}) - (\text{FP} \times \text{Custo}_{\text{campanha}}) - (\text{FN} \times \text{CLV}_{\text{perdido}})$$
+$$\text{EP} = (\text{TP} \times \text{Lucro}*{\text{retenção}}) - (\text{FP} \times \text{Custo}*{\text{campanha}}) - (\text{FN} \times \text{CLV}_{\text{perdido}})$$
 
 **Parâmetros para Segmento Pós-Pago:**
+
 - **TP (Churner detectado + retido):** 
   - CLV salvo: R$ 1.200
   - Custo campanha: R$ 60
   - **Lucro líquido: R$ 1.140**
-
 - **FP (Não-churner recebe campanha desnecessária):**
   - Custo campanha: R$ 60
   - **Prejuízo: -R$ 60**
-
 - **FN (Churner não detectado, perde cliente):**
   - CLV perdido: R$ 1.200
   - **Prejuízo: -R$ 1.200**
 
 **Razão de Custo (FN vs FP):**
-$$\text{Taxa} = \frac{\text{Prejuízo}_{\text{FN}}}{\text{Custo}_{\text{FP}}} = \frac{1.200}{60} = 20:1$$
+$$\text{Taxa} = \frac{\text{Prejuízo}*{\text{FN}}}{\text{Custo}*{\text{FP}}} = \frac{1.200}{60} = 20:1$$
 
 **Insight Crítico:** FN é **20x mais caro** que FP (pós-pago). Para pré-pago, ainda pior!
 
@@ -97,6 +101,7 @@ $$\text{Taxa} = \frac{\text{Prejuízo}_{\text{FN}}}{\text{Custo}_{\text{FP}}} = 
 > **Conexão Negócio ↔ Técnico**
 >
 > Da análise de Lucro Esperado acima, deriva-se a **métrica técnica PRIMARY**:
+>
 > - Para maximizar EP, minimizamos FN (Falsos Negativos)
 > - Minimizar FN = **Maximizar Recall** (TP / (TP + FN))
 > - Mathematicamente: `Threshold ótimo ≈ 5%` implica **Recall ≥ 75%** obrigatório
@@ -144,13 +149,15 @@ $$\text{Taxa} = \frac{\text{Prejuízo}_{\text{FN}}}{\text{Custo}_{\text{FP}}} = 
 
 ### 2.2 Responsabilidades por Fase
 
-| Fase | Owner | Entregável | SLA |
-|------|-------|-----------|-----|
+
+| Fase                 | Owner     | Entregável              | SLA       |
+| -------------------- | --------- | ----------------------- | --------- |
 | **Explor./Modeling** | Data Team | Modelo com AUROC ≥ 0.82 | 4 semanas |
-| **Deployment** | MLOps | API em produção com SLA | 2 semanas |
-| **Operação** | CRM Team | Campanhas executadas | Daily |
-| **Monitoring** | MLOps | Dashboard + alertas | 24/7 |
-| **Retraining** | Data Team | Modelo retreinado | Semanal |
+| **Deployment**       | MLOps     | API em produção com SLA | 2 semanas |
+| **Operação**         | CRM Team  | Campanhas executadas    | Daily     |
+| **Monitoring**       | MLOps     | Dashboard + alertas     | 24/7      |
+| **Retraining**       | Data Team | Modelo retreinado       | Semanal   |
+
 
 ---
 
@@ -158,18 +165,21 @@ $$\text{Taxa} = \frac{\text{Prejuízo}_{\text{FN}}}{\text{Custo}_{\text{FP}}} = 
 
 ### 3.1 Comparação de Parâmetros Econômicos
 
-| Parâmetro | Pós-Pago | Pré-Pago | Impacto |
-|-----------|----------|----------|--------|
-| **Churn Mensal** | 0,98-1,4% | 3,0-6,0% | Pré é 3-6x maior ⚠️ |
-| **ARPU** | R$ 50-55 | R$ 12-18 | Pós é 3-4x maior |
-| **CLV (24m)** | R$ 800-1.500 | R$ 60-200 | Pós é 4-7x maior |
-| **SAC** | R$ 150-500 | R$ 20-50 | Pós é 3-10x maior |
-| **Razão FN/FP** | 10:1 - 15:1 | 5:1 - 10:1 | Ambas pedem Recall alto |
-| **Base Brasil** | ~70M | ~190M | Pré é 2.7x maior |
+
+| Parâmetro        | Pós-Pago     | Pré-Pago   | Impacto                 |
+| ---------------- | ------------ | ---------- | ----------------------- |
+| **Churn Mensal** | 0,98-1,4%    | 3,0-6,0%   | Pré é 3-6x maior ⚠️     |
+| **ARPU**         | R$ 50-55     | R$ 12-18   | Pós é 3-4x maior        |
+| **CLV (24m)**    | R$ 800-1.500 | R$ 60-200  | Pós é 4-7x maior        |
+| **SAC**          | R$ 150-500   | R$ 20-50   | Pós é 3-10x maior       |
+| **Razão FN/FP**  | 10:1 - 15:1  | 5:1 - 10:1 | Ambas pedem Recall alto |
+| **Base Brasil**  | ~70M         | ~190M      | Pré é 2.7x maior        |
+
 
 ### 3.2 Calibração por Segmento
 
 **Estratégia Pós-Pago (Foco: Alto CLV)**
+
 ```
 ├─ Recall mínimo: ≥ 0.75 (não deixar CLV alto escapar)
 ├─ Threshold: ~0.25 (agressivo, FN é caro)
@@ -177,6 +187,7 @@ $$\text{Taxa} = \frac{\text{Prejuízo}_{\text{FN}}}{\text{Custo}_{\text{FP}}} = 
 ```
 
 **Estratégia Pré-Pago (Foco: Volume)**
+
 ```
 ├─ Recall mínimo: ≥ 0.70 (churn já é natural)
 ├─ Threshold: ~0.35 (pouco mais conservador)
@@ -216,59 +227,76 @@ Cenários de Conversão:
 
 ### 4.1 Especificação Técnica
 
-| Aspecto | Especificação |
-|---------|-----------|
-| **Fonte** | Sistema de CRM + Network Data + Billing System |
-| **Tamanho** | ≥ 5.000 registros (mínimo); ideal 100K+ para cada segmento |
-| **Timeframe** | 24 meses histórico (captura sazonalidade anual) |
-| **Target** | `churn` (0 = retido, 1 = churned) → BINÁRIA DESBALANCEADA |
-| **Desequilíbrio** | Pós: ~1,2% churn; Pré: ~4,5% churn |
-| **Granularidade** | Account-level (um registro = um cliente) |
+
+| Aspecto           | Especificação                                              |
+| ----------------- | ---------------------------------------------------------- |
+| **Fonte**         | Sistema de CRM + Network Data + Billing System             |
+| **Tamanho**       | ≥ 5.000 registros (mínimo); ideal 100K+ para cada segmento |
+| **Timeframe**     | 24 meses histórico (captura sazonalidade anual)            |
+| **Target**        | `churn` (0 = retido, 1 = churned) → BINÁRIA DESBALANCEADA  |
+| **Desequilíbrio** | Pós: ~1,2% churn; Pré: ~4,5% churn                         |
+| **Granularidade** | Account-level (um registro = um cliente)                   |
+
 
 ### 4.2 Variáveis Preditoras (20+ Features)
 
 #### **Categoria 1: Demográficos**
-| Feature | Tipo | Range |
-|---------|------|-------|
-| `age` | Contínua | 18-80 anos |
-| `gender` | Categórica | M/F |
-| `region` | Categórica | 27 (estados BR) |
-| `income_class` | Categórica | A,B,C,D,E |
+
+
+| Feature        | Tipo       | Range           |
+| -------------- | ---------- | --------------- |
+| `age`          | Contínua   | 18-80 anos      |
+| `gender`       | Categórica | M/F             |
+| `region`       | Categórica | 27 (estados BR) |
+| `income_class` | Categórica | A,B,C,D,E       |
+
 
 #### **Categoria 2: Relacionamento & Histórico**
-| Feature | Tipo | Descrição |
-|---------|------|-----------|
-| `tenure_months` | Contínua | Meses como cliente |
-| `contract_type` | Categórica | Pós/Pré/Controle |
-| `contract_length_months` | Discreta | Duração contrato |
-| `monthly_recurring_revenue` | Contínua | ARPU real do cliente |
-| `customer_lifetime_value` | Contínua | CLV estimado |
+
+
+| Feature                     | Tipo       | Descrição            |
+| --------------------------- | ---------- | -------------------- |
+| `tenure_months`             | Contínua   | Meses como cliente   |
+| `contract_type`             | Categórica | Pós/Pré/Controle     |
+| `contract_length_months`    | Discreta   | Duração contrato     |
+| `monthly_recurring_revenue` | Contínua   | ARPU real do cliente |
+| `customer_lifetime_value`   | Contínua   | CLV estimado         |
+
 
 #### **Categoria 3: Padrão de Uso**
-| Feature | Tipo | Descrição |
-|---------|------|-----------|
-| `total_usage_gb_last_30d` | Contínua | Consumo de dados |
-| `voice_minutes_last_30d` | Contínua | Minutos falados |
-| `sms_count_last_30d` | Discreta | SMSs enviados |
-| `payment_delay_days` | Discreta | Dias atraso médio |
-| `bill_amount_variance` | Contínua | Variabilidade fatura |
+
+
+| Feature                   | Tipo     | Descrição            |
+| ------------------------- | -------- | -------------------- |
+| `total_usage_gb_last_30d` | Contínua | Consumo de dados     |
+| `voice_minutes_last_30d`  | Contínua | Minutos falados      |
+| `sms_count_last_30d`      | Discreta | SMSs enviados        |
+| `payment_delay_days`      | Discreta | Dias atraso médio    |
+| `bill_amount_variance`    | Contínua | Variabilidade fatura |
+
 
 #### **Categoria 4: Portfólio de Serviços**
-| Feature | Tipo | Descrição |
-|---------|------|-----------|
+
+
+| Feature               | Tipo     | Descrição                           |
+| --------------------- | -------- | ----------------------------------- |
 | `num_services_active` | Discreta | Qte serviços (voz, SMS, dados, etc) |
-| `has_data_plan` | Binária | Internet contratada? |
-| `has_roaming` | Binária | Roaming internacional? |
-| `has_insurance` | Binária | Seguro do dispositivo? |
+| `has_data_plan`       | Binária  | Internet contratada?                |
+| `has_roaming`         | Binária  | Roaming internacional?              |
+| `has_insurance`       | Binária  | Seguro do dispositivo?              |
+
 
 #### **Categoria 5: Sinais Comportamentais (Engineered)**
-| Feature | Tipo | Descrição |
-|---------|------|-----------|
-| `inactivity_days_max_30d` | Discreta | Maior período sem uso (últimos 30d) |
-| `support_tickets_last_90d` | Discreta | Tickets abertos |
-| `complaint_resolution_rate` | Contínua | % reclamações resolvidas |
-| `customer_satisfaction_score` | Ordinal | 1-5 (NPS) |
-| `days_since_last_interaction` | Discreta | Dias última compra/uso |
+
+
+| Feature                       | Tipo     | Descrição                           |
+| ----------------------------- | -------- | ----------------------------------- |
+| `inactivity_days_max_30d`     | Discreta | Maior período sem uso (últimos 30d) |
+| `support_tickets_last_90d`    | Discreta | Tickets abertos                     |
+| `complaint_resolution_rate`   | Contínua | % reclamações resolvidas            |
+| `customer_satisfaction_score` | Ordinal  | 1-5 (NPS)                           |
+| `days_since_last_interaction` | Discreta | Dias última compra/uso              |
+
 
 ### 4.3 Qualidade de Dados Esperada
 
@@ -290,6 +318,7 @@ Cenários de Conversão:
 > **Decisão Estratégica**: O modelo será otimizado para **Recall ≥ 75%** como métrica técnica PRIMARY.
 >
 > **Por quê?** 
+>
 > - Objetivo de negócio é **detectar e reter churners** antes de perderem
 > - Falsos Negativos (churner não detectado) custam **R$ 1.200** (CLV perdido)
 > - Falsos Positivos (campanha desnecessária) custam apenas **R$ 60**
@@ -302,16 +331,18 @@ Cenários de Conversão:
 
 #### **Métrica 1: AUROC (Area Under ROC Curve)**
 
-$$\text{AUROC} = \int_0^1 TPR(\theta) \, d(FPR(\theta))$$
+$$\text{AUROC} = \int_0^1 TPR(\theta)  d(FPR(\theta))$$
 
 **Interpretação:** Probabilidade de modelo rankear churner real acima de não-churner.
 
-| Faixa | Interpretação | Decisão |
-|-------|----------|----------|
-| ≥ 0,88 | Excelente | ✅ Aprovado imediato |
-| 0,82 - 0,88 | Bom | ✅ Aprovado |
-| 0,75 - 0,82 | Aceitável | ⚠️ Monitorar intensamente |
-| < 0,75 | Fraco | ❌ Rejeitar |
+
+| Faixa       | Interpretação | Decisão                   |
+| ----------- | ------------- | ------------------------- |
+| ≥ 0,88      | Excelente     | ✅ Aprovado imediato       |
+| 0,82 - 0,88 | Bom           | ✅ Aprovado                |
+| 0,75 - 0,82 | Aceitável     | ⚠️ Monitorar intensamente |
+| < 0,75      | Fraco         | ❌ Rejeitar                |
+
 
 **Meta:** AUROC ≥ 0,82 (aceitável), ideal ≥ 0,88
 
@@ -326,19 +357,21 @@ $$\text{Recall} = \frac{TP}{TP + FN}$$
 **Justificativa Matemática para Recall Agressivo:**
 
 Razão de custo (FN vs FP) para pós-pago:
-$$\text{Taxa} = \frac{\text{CLV}_{\text{perdido}}}{\text{Custo}_{\text{campanha}}} = \frac{R\$ 1.200}{R\$ 60} = 20:1$$
+$$\text{Taxa} = \frac{\text{CLV}*{\text{perdido}}}{\text{Custo}*{\text{campanha}}} = \frac{R 1.200}{R 60} = 20:1$$
 
 Equação econômica ótima:
-$$\text{Threshold ótimo}^* = \frac{\text{Custo}_{\text{FP}}}{\text{Custo}_{\text{FP}} + \text{Ganho}_{\text{TP}}} = \frac{60}{60 + 1.140} = 0.050$$
+$$\text{Threshold ótimo}^* = \frac{\text{Custo}*{\text{FP}}}{\text{Custo}*{\text{FP}} + \text{Ganho}_{\text{TP}}} = \frac{60}{60 + 1.140} = 0.050$$
 
 **Resultado:** Threshold ~5% (muito baixo!) → **Recall ≥ 75% obrigatório**
 
-| Faixa | Interpretação | Decisão |
-|-------|----------|----------|
-| ≥ 0,80 | Excelente | ✅ Aprovado |
-| 0,75 - 0,80 | Adequado | ✅ Aprovado |
-| 0,70 - 0,75 | Borderline | ⚠️ Aceitar com cuidado |
-| < 0,70 | Insuficiente | ❌ Rejeitar (muitos FN) |
+
+| Faixa       | Interpretação | Decisão                |
+| ----------- | ------------- | ---------------------- |
+| ≥ 0,80      | Excelente     | ✅ Aprovado             |
+| 0,75 - 0,80 | Adequado      | ✅ Aprovado             |
+| 0,70 - 0,75 | Borderline    | ⚠️ Aceitar com cuidado |
+| < 0,70      | Insuficiente  | ❌ Rejeitar (muitos FN) |
+
 
 **Meta:** Recall ≥ 0,75
 
@@ -350,11 +383,13 @@ $$\text{Precision} = \frac{TP}{TP + FP}$$
 
 **Interpretação:** De todas as alertas geradas, quantas estão corretas?
 
-| Faixa Esperada | Significado |
-|----------|-----------|
-| 0,55 - 0,75 | Normal em desbalanceado com Recall alto |
-| < 0,55 | Muitos FP (revisar threshold) |
-| > 0,75 | Muito conservador (está desperdiçando detecção) |
+
+| Faixa Esperada | Significado                                     |
+| -------------- | ----------------------------------------------- |
+| 0,55 - 0,75    | Normal em desbalanceado com Recall alto         |
+| < 0,55         | Muitos FP (revisar threshold)                   |
+| > 0,75         | Muito conservador (está desperdiçando detecção) |
+
 
 **Meta Faixa:** 0,55 - 0,75
 
@@ -366,11 +401,13 @@ $$\text{F}_1 = 2 \times \frac{\text{Precision} \times \text{Recall}}{\text{Preci
 
 Harmônica de Precision/Recall. NÃO é métrica principal, mas indica balanceamento.
 
-| Faixa | Interpretação |
-|-------|----------|
-| ≥ 0,70 | Balanceamento adequado |
+
+| Faixa       | Interpretação              |
+| ----------- | -------------------------- |
+| ≥ 0,70      | Balanceamento adequado     |
 | 0,65 - 0,70 | Aceitável (foco em Recall) |
-| < 0,65 | Revisar trade-off |
+| < 0,65      | Revisar trade-off          |
+
 
 **Meta:** F1-Score ≥ 0,70
 
@@ -378,18 +415,21 @@ Harmônica de Precision/Recall. NÃO é métrica principal, mas indica balanceam
 
 #### **Métrica 5: PR-AUC (Precision-Recall AUC)**
 
-$$\text{PR-AUC} = \int_0^1 \text{Precision}(\theta) \, d(\text{Recall}(\theta))$$
+$$\text{PR-AUC} = \int_0^1 \text{Precision}(\theta)  d(\text{Recall}(\theta))$$
 
 **Por que é crítico para Churn:**
+
 - Baseline aleatório = % positivos (~1-5% para pós-pago)
 - PR-AUC penaliza FP muito mais que AUROC
 - **Métrica principal para dados desbalanceados**
 
-| Valor | Interpretação | Decisão |
-|-------|----------|----------|
-| ≥ 0,65 | Aceitável | ✅ Monitore |
-| 0,55 - 0,65 | Borderline | ⚠️ Intenso monitoramento |
-| < 0,55 | Problemático | ❌ Rejeitar |
+
+| Valor       | Interpretação | Decisão                  |
+| ----------- | ------------- | ------------------------ |
+| ≥ 0,65      | Aceitável     | ✅ Monitore               |
+| 0,55 - 0,65 | Borderline    | ⚠️ Intenso monitoramento |
+| < 0,55      | Problemático  | ❌ Rejeitar               |
+
 
 **Meta:** PR-AUC ≥ 0,65
 
@@ -407,6 +447,7 @@ AUROC  │ Recall  │ F1    │ PR-AUC  │ Aprovado?  │ Ação
 ```
 
 **Regra de Decisão Automática:**
+
 ```python
 if (AUROC >= 0.82) AND (Recall >= 0.75) AND (PR_AUC >= 0.65):
     aprovado_para_producao = True
@@ -449,9 +490,9 @@ Pré-Pago (R$ 12-18 ARPU, R$ 60-200 CLV):
 ### 6.2 Fórmula do Expected Profit
 
 $$\text{EP}(\theta) = \sum_{i=1}^{N} \begin{cases}
-+1.140 & \text{if } score_i > \theta \text{ AND } churner \\
--60 & \text{if } score_i > \theta \text{ AND } não-churner \\
--1.200 & \text{if } score_i \leq \theta \text{ AND } churner \\
++1.140 & \text{if } score_i > \theta \text{ AND } churner 
+-60 & \text{if } score_i > \theta \text{ AND } não-churner 
+-1.200 & \text{if } score_i \leq \theta \text{ AND } churner 
 0 & \text{if } score_i \leq \theta \text{ AND } não-churner
 \end{cases}$$
 
@@ -460,6 +501,7 @@ $$\text{EP}(\theta) = \sum_{i=1}^{N} \begin{cases}
 **Cenário 1: Base Pós-Pago 1M clientes (1,2% churn = 12.000 churners)**
 
 **Modelo com AUROC=0.82, Recall=0.75:**
+
 ```
 TP = 12.000 × 0.75 = 9.000   → Lucro: 9.000 × R$ 1.140 = R$ 10.26M
 FN = 12.000 × 0.25 = 3.000   → Prejuízo: 3.000 × R$ 1.200 = R$ 3.6M
@@ -471,6 +513,7 @@ Expected Profit = R$ 10.26M - R$ 3.6M - R$ 5.93M
 ```
 
 **Cenário 2: Mesmo modelo com Recall=0.80:**
+
 ```
 TP = 12.000 × 0.80 = 9.600   → Lucro: 9.600 × R$ 1.140 = R$ 10.94M
 FN = 12.000 × 0.20 = 2.400   → Prejuízo: 2.400 × R$ 1.200 = R$ 2.88M
@@ -493,9 +536,10 @@ Expected Profit = R$ 10.94M - R$ 2.88M - R$ 7.11M
 
 Para maximizar Expected Profit, o threshold ótimo é:
 
-$$\theta^* = \frac{\text{Custo}_{\text{FP}}}{\text{Custo}_{\text{FP}} + \text{Ganho}_{\text{TP}}} = \frac{60}{60 + 1.140} = 0.050$$
+$$\theta^* = \frac{\text{Custo}*{\text{FP}}}{\text{Custo}*{\text{FP}} + \text{Ganho}_{\text{TP}}} = \frac{60}{60 + 1.140} = 0.050$$
 
 **Interpretação:**
+
 - Alertar clientes com **P(churn) > 5%** (muito baixo vs padrão de 50%)
 - Isso maximiza Recall (captura até churners "improvável")
 - Aceita muitos FP, mas evita FN caros
@@ -551,23 +595,27 @@ Expected Profit (R$)
 
 ### 8.1 KPIs de Negócio (O que importa para Executivos)
 
-| KPI | Meta | Cálculo | Frequência |
-|-----|------|---------|-----------|
-| **Expected Profit Mensal** | ≥ R$ 2M | ∑TP×1.140 - ∑FP×60 - ∑FN×1.200 | Diária |
-| **Taxa de Prevenção de Churn** | ≥ 40% | (TP / Total_Churners) × 100 | Semanal |
-| **Churn Reduzido (%)** | -1,0 pp | (Churn_base - Churn_com_modelo) | Mensal |
-| **Impacto Anual Estimado** | ≥ R$ 100M | EP_mensal × 12 × N_clientes | Trimestral |
-| **ROI da Solução** | ≥ 5:1 | (Benefício - Custo) / Custo | Anual |
+
+| KPI                            | Meta      | Cálculo                         | Frequência |
+| ------------------------------ | --------- | ------------------------------- | ---------- |
+| **Expected Profit Mensal**     | ≥ R$ 2M   | ∑TP×1.140 - ∑FP×60 - ∑FN×1.200  | Diária     |
+| **Taxa de Prevenção de Churn** | ≥ 40%     | (TP / Total_Churners) × 100     | Semanal    |
+| **Churn Reduzido (%)**         | -1,0 pp   | (Churn_base - Churn_com_modelo) | Mensal     |
+| **Impacto Anual Estimado**     | ≥ R$ 100M | EP_mensal × 12 × N_clientes     | Trimestral |
+| **ROI da Solução**             | ≥ 5:1     | (Benefício - Custo) / Custo     | Anual      |
+
 
 ### 8.2 KPIs Técnicos (Monitoramento 24/7)
 
-| KPI | Meta | Alerta | Frequência |
-|-----|------|--------|-----------|
-| **AUROC (Produção)** | ≥ 0.82 | < 0.80 por 3d | Diária |
-| **Recall (Produção)** | ≥ 0.75 | < 0.70 por 2d | Diária |
-| **PR-AUC (Produção)** | ≥ 0.65 | < 0.60 por 2d | Semanal |
-| **Data Drift (KS Test)** | KS < 0.15 | KS > 0.20 | Semanal |
-| **Model Drift (AUROC Queda)** | Estável | > -5% em 7d | Diária |
+
+| KPI                           | Meta      | Alerta        | Frequência |
+| ----------------------------- | --------- | ------------- | ---------- |
+| **AUROC (Produção)**          | ≥ 0.82    | < 0.80 por 3d | Diária     |
+| **Recall (Produção)**         | ≥ 0.75    | < 0.70 por 2d | Diária     |
+| **PR-AUC (Produção)**         | ≥ 0.65    | < 0.60 por 2d | Semanal    |
+| **Data Drift (KS Test)**      | KS < 0.15 | KS > 0.20     | Semanal    |
+| **Model Drift (AUROC Queda)** | Estável   | > -5% em 7d   | Diária     |
+
 
 ### 8.3 Mapping Técnica → Negócio
 
@@ -592,17 +640,20 @@ Precision 0.65    │    FP = 35% de não-churners alertas
 
 ### 9.1 Service Level Objectives para API FastAPI
 
-| SLO | Objetivo | Medida | Impact se quebrar |
-|-----|----------|--------|------------------|
-| **Uptime** | ≥ 99.5% | Heartbeat 24/7 | Campanha potencial perdida |
-| **Latência p50** | ≤ 100ms | APM (DataDog) | Detecção mais lenta |
-| **Latência p99** | ≤ 200ms | APM | SLA do CRM atingido |
-| **Throughput** | ≥ 500 req/s | Load testing | Não escala para 70M base |
-| **Error Rate** | ≤ 0.1% | Logs de app | Perda de histórico |
+
+| SLO              | Objetivo    | Medida         | Impact se quebrar          |
+| ---------------- | ----------- | -------------- | -------------------------- |
+| **Uptime**       | ≥ 99.5%     | Heartbeat 24/7 | Campanha potencial perdida |
+| **Latência p50** | ≤ 100ms     | APM (DataDog)  | Detecção mais lenta        |
+| **Latência p99** | ≤ 200ms     | APM            | SLA do CRM atingido        |
+| **Throughput**   | ≥ 500 req/s | Load testing   | Não escala para 70M base   |
+| **Error Rate**   | ≤ 0.1%      | Logs de app    | Perda de histórico         |
+
 
 ### 9.2 Endpoints da API
 
 **Endpoint 1: `/predict/single` (1 cliente)**
+
 ```http
 POST /api/v1/predict/single HTTP/1.1
 
@@ -628,6 +679,7 @@ HTTP 200 OK
 ```
 
 **Endpoint 2: `/predict/batch` (N clientes)**
+
 ```http
 POST /api/v1/predict/batch
 
@@ -644,6 +696,7 @@ HTTP 200 OK
 ```
 
 **Endpoint 3: `/health` (monitoramento)**
+
 ```http
 GET /api/v1/health
 
@@ -665,6 +718,7 @@ HTTP 200 OK
 ### 10.1 Tipos de Drift
 
 **Data Drift (Distribuição muda):**
+
 ```python
 from scipy.stats import ks_2samp
 
@@ -674,6 +728,7 @@ if ks_stat > 0.15:
 ```
 
 **Model Drift (Performance cai):**
+
 ```python
 auroc_baseline = 0.850  # Produção
 auroc_recent = calcular_auroc(y_true_recent, y_pred_recent)
@@ -683,6 +738,7 @@ if auroc_recent < 0.80:  # Queda de 5%
 ```
 
 **Concept Drift (Comportamento muda):**
+
 ```
 # Feature importance mudou?
 # Novos padrões de churn?
@@ -768,25 +824,29 @@ SEMANA 8+: OPERATIONS & MAINTENANCE
 
 ### 11.2 Entregáveis por Fase
 
-| Fase | Owner | Entregável | Aceitação |
-|------|-------|----------|-----------|
-| Understanding | Product | ML Canvas assinado | ✅ |
-| Data Prep | Data Eng | Dataset validado + features | Code review |
-| Modeling | Data Sci | Modelo(s) com AUROC ≥0.82 | AUROC + PR-AUC + EP |
-| Deployment | MLOps | API em produção, SLA | Smoke tests + load tests |
-| Go-Live | CRM | Campanhas rodar | Taxa contato ≥80% |
-| Operations | MLOps | Monitoring 24/7 | Dashboard + alertas |
+
+| Fase          | Owner    | Entregável                  | Aceitação                |
+| ------------- | -------- | --------------------------- | ------------------------ |
+| Understanding | Product  | ML Canvas                   | ✅                        |
+| Data Prep     | Data Eng | Dataset validado + features | Code review              |
+| Modeling      | Data Sci | Modelo(s) com AUROC ≥0.82   | AUROC + PR-AUC + EP      |
+| Deployment    | MLOps    | API em produção, SLA        | Smoke tests + load tests |
+| Go-Live       | CRM      | Campanhas rodar             | Taxa contato ≥80%        |
+| Operations    | MLOps    | Monitoring 24/7             | Dashboard + alertas      |
+
 
 ### 11.3 Critérios de Sucesso por Fase
 
-| Fase | GO? | Critério |
-|------|-----|----------|
-| **Planning** | ✅ | Stakeholders alinhados, budget aprovado |
-| **Data Prep** | ✅ | Features prontas, dataset validado |
-| **Modeling** | ⏳ | AUROC ≥0.82, PR-AUC ≥0.65, Recall ≥0.75 |
-| **Deployment** | ⏳ | Uptime 99.5%, latência <200ms p99 |
-| **Go-Live** | ⏳ | CRM operacional, campanhas rodando |
-| **Operations** | ⏳ | Expected Profit ≥R$2M/mês |
+
+| Fase           | GO? | Critério                                |
+| -------------- | --- | --------------------------------------- |
+| **Planning**   | ✅   | Stakeholders alinhados, budget aprovado |
+| **Data Prep**  | ✅   | Features prontas, dataset validado      |
+| **Modeling**   | ⏳   | AUROC ≥0.82, PR-AUC ≥0.65, Recall ≥0.75 |
+| **Deployment** | ⏳   | Uptime 99.5%, latência <200ms p99       |
+| **Go-Live**    | ⏳   | CRM operacional, campanhas rodando      |
+| **Operations** | ⏳   | Expected Profit ≥R$2M/mês               |
+
 
 ---
 
@@ -819,4 +879,3 @@ Lucro Operacional: ~R$ 100-150M/ano (após custos)
 **Versão:** 3.0 (Brasil CRISP-DM)  
 **Status:** 🟡 Pronto para Implementação (Fase 2)  
 **Próximo Passo:** Validar dados + Feature Engineering
-
