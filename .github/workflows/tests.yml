@@ -16,33 +16,21 @@ jobs:
     
     steps:
       - name: Checkout do repositorio
-        uses: actions/checkout@v3
-    
-      - name: Configurar o python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
+        uses: actions/checkout@v4
     
       - name: Instalar UV
-        run: |
-          curl -LsSf https://astral.sh/uv/install.sh | sh
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
     
-      # 4. Instalar dependências
+      - name: Configurar o python ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
+    
       - name: Instalar dependências
-        run: |
-          uv sync
-          source .venv/bin/activate
-          uv pip install --system -r requirements.txt
-          uv pip install --system pytest pytest-cov
-    
-      # 5. Rodar lint com Ruff
+        run: uv sync --group dev
+
       - name: Lint com Ruff
-        run: |
-          source .venv/bin/activate
-          ruff check src/ tests/ --output-format=github
-    
-      # 6. Rodar testes com cobertura
+        run: uv run ruff check src/ tests/ --output-format=github
+
       - name: Executar testes
-        run: |
-          pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
+        run: uv run pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
