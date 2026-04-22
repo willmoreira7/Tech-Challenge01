@@ -186,10 +186,10 @@ pyrightconfig.json
 # =====================================================
 
 # Dados brutos (muito pesados, não commitar)
-data/raw/*
-!data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
+# data/raw/*
+# !data/raw/.gitkeep
+# data/processed/*
+# !data/processed/.gitkeep
 
 # Modelos treinados e artefatos (muito pesados)
 models/*.pth          # PyTorch models
