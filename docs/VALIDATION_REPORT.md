@@ -203,15 +203,15 @@ uv.lock                     ✅ Existe e sincronizado
 - [x] **README alinhado** ✅ (sincronizado com ML_CANVAS)
 - [x] **Governança estabelecida** ✅ (Commitlint + Husky)
 - [ ] **EDA executada** ⏳ (ETA: 24 Abr - depende de dataset load)
-- [ ] Baselines (DummyClassifier, LogisticRegression) ⏳ treinados
-- [ ] Métricas de negócio validadas ⏳
+- [x] Baselines treinados (DummyClassifier, LogisticRegression, DecisionTree, RandomForest) com StratifiedKFold k=5
+- [x] Métricas de negócio validadas (Recall ≥ 0.75 atingido pela LogisticRegression: 0.8020±0.015)
 
 **Status**: Planning 100%, próximo passo: EDA + dataset
 
 ### Etapa 2: Modelagem (Semana 3) - 0% Concluída
 - [ ] Rede Neural MLP em PyTorch definida
 - [ ] Loop de treinamento com Early Stopping
-- [ ] Comparação contra baselines
+- [ ] Comparação contra baselines (LogReg AUC-ROC 0.8449, Recall 0.8020)
 - [ ] MLflow tracking configurado
 
 **Bloquerador**: src/model.py, src/train.py não existem

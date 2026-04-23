@@ -2,11 +2,13 @@ import hashlib
 
 import pandas as pd
 import structlog
+from pathlib import Path
 
 log = structlog.get_logger()
 
 RANDOM_SEED = 42
-RAW_PATH = "data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv"
+PROJECT_ROOT = Path.cwd().parent
+RAW_PATH = PROJECT_ROOT / "data" / "raw" / "WA_Fn-UseC_-Telco-Customer-Churn.csv"
 
 
 def load_raw(path: str = RAW_PATH) -> tuple[pd.DataFrame, str]:
