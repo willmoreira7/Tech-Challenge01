@@ -796,10 +796,10 @@ SEMANA 2-3: DATA PREPARATION
 ├─ Feature engineering (20+ features)
 ├─ Tratamento de valores faltantes/outliers
 ├─ SMOTE ou class_weight para desbalanceamento
-└─ Train/Val/Test split (70/15/15)
+└─ Validação via StratifiedKFold (k=5, seed=42)
 
 SEMANA 4-5: MODELING
-├─ Baseline: DuummyClassifier e Logistic Regression (target AUROC ≥0.75)
+├─ Baselines: DummyClassifier, LogisticRegression, DecisionTree, RandomForest (target AUROC ≥0.75)
 ├─ Main: Construção de MLP com PyTorch com early stopping e batching
 ├─ Hyperparameter tuning (Random Search)
 ├─ Threshold otimização via Expected Profit

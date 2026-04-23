@@ -46,14 +46,15 @@ Atualizar após a Etapa 2 com resultados reais dos experimentos.
 | Recall | — | — | — |
 | Precision | — | — | — |
 
-### Comparação com baselines
+### Comparação com baselines (StratifiedKFold k=5, média ± std)
 
-| Modelo | AUC-ROC | PR-AUC | F1 |
+| Modelo | AUC-ROC | Recall | F1 |
 |--------|---------|--------|----|
-| DummyClassifier | — | — | — |
-| LogisticRegression | — | — | — |
-| RandomForest | — | — | — |
-| XGBoost | — | — | — |
+| DummyClassifier (most_frequent) | 0.5000±0.000 | 0.0000±0.000 | 0.0000±0.000 |
+| DummyClassifier (stratified) | 0.5050±0.007 | 0.2750±0.011 | 0.2738±0.011 |
+| LogisticRegression (balanced) | **0.8449±0.013** | **0.8020±0.015** | **0.6258±0.009** |
+| DecisionTree (balanced) | 0.6588±0.020 | 0.5029±0.036 | 0.4983±0.030 |
+| RandomForest (balanced) | 0.8207±0.010 | 0.4746±0.035 | 0.5380±0.029 |
 | **MLP (este modelo)** | — | — | — |
 
 ### Análise de custo
@@ -73,8 +74,8 @@ Atualizar após a Etapa 2 com resultados reais dos experimentos.
 - **Fonte**: Telco Customer Churn — IBM Sample Dataset
 - **Período**: dados históricos de clientes — sem data explícita
 - **Tamanho**: ~7.043 registros, 20 features
-- **Distribuição de classes**: `a preencher — esperado ~85% não-churn / 15% churn`
-- **Split**: 70% treino / 15% validação / 15% teste, estratificado por classe
+- **Distribuição de classes**: 73.5% não-churn / 26.5% churn (1869/7043)
+- **Validação**: StratifiedKFold (k=5, shuffle=True, seed=42) — mantém proporção de classes em cada fold
 - **Pré-processamento**: `a detalhar após Etapa 1`
 
 ---

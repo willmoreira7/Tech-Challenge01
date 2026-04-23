@@ -62,7 +62,7 @@ Pipeline ML **production-ready** para predição de churn em operadora de teleco
 ### Objetivos Técnicos 🔜 A Implementar
 
 - 🔜 **EDA Avançada**: Análise de drivers de churn (tenure, contrato, serviços)
-- 🔜 **Baseline ML**: Logistic Regression (Scikit-Learn) para baseline
+- ✅ **Baseline ML**: 5 baselines avaliados com StratifiedKFold(k=5) — Dummy, Logistic Regression, Decision Tree, Random Forest
 - 🔜 **Deep Learning**: Rede Neural (PyTorch) com +7% F1 vs baseline
 - 🔜 **Reprodutibilidade**: Random seeds, versionamento, CI/CD
 - 🔜 **API Production**: FastAPI com SLA <100ms (p95)
@@ -284,6 +284,21 @@ baseline = LogisticRegression(
 ```
 
 **Justificativa**: Baseline linear rápido, interpretável (feature importance), baseline para comparação econômica (Recall ~70% → FN caro não capturado).
+
+#### Resultados Comparativos — Baselines vs MLP
+
+Baselines avaliados com StratifiedKFold k=5 (média ± std). MLP avaliado em holdout test set (20%).
+
+| Modelo | Accuracy | ROC AUC | Recall | Precision | F1 |
+|---|---|---|---|---|---|
+| DummyClassifier (most_frequent) | 0.7346±0.000 | 0.5000±0.000 | 0.0000±0.000 | 0.0000±0.000 | 0.0000±0.000 |
+| DummyClassifier (stratified) | 0.6129±0.006 | 0.5050±0.007 | 0.2750±0.011 | 0.2727±0.011 | 0.2738±0.011 |
+| Logistic Regression (balanced) | 0.7456±0.005 | 0.8449±0.013 | **0.8020±0.015** | 0.5132±0.007 | 0.6258±0.009 |
+| Decision Tree (balanced) | 0.7316±0.013 | 0.6588±0.020 | 0.5029±0.036 | 0.4940±0.024 | 0.4983±0.030 |
+| Random Forest (balanced) | 0.7842±0.010 | 0.8207±0.010 | 0.4746±0.035 | 0.6223±0.024 | 0.5380±0.029 |
+| **MLP (PyTorch)** | **—** | **—** | **—** | **—** | **—** |
+
+Meta de negócio: **Recall ≥ 0.75** — a Logistic Regression atinge o target (0.80 ± 0.015). Resultados do MLP serão preenchidos após treinamento.
 
 #### 3b. Deep Learning: Rede Neural (PyTorch)
 
