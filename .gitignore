@@ -467,3 +467,5 @@ yarn.lock
 
 # Husky git hooks
 .husky/_/husky.sh
+
+*.pt
