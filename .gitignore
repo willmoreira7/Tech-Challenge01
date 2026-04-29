@@ -272,6 +272,10 @@ service-account.json
 azure-config.json
 .azure/
 
+# Terraform
+.terraform/
+.terraform.lock.hcl
+
 # =====================================================
 # 🔑 SENSITIVE DATA
 # =====================================================
