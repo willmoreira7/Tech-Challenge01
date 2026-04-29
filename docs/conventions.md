@@ -109,4 +109,4 @@ test(mlp): adicionar smoke test do forward pass
 docs(model_card): preencher métricas finais
 ```
 
-Scopes válidos: `data`, `features`, `model`, `api`, `tests`, `docs`, `ci`, `config`.
+Scopes válidos: `data`, `features`, `model`, `api`, `tests`, `docs`, `ci`, `config`, `iac`.

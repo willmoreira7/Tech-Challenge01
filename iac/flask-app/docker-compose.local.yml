@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:latest
+    container_name: mlflow-local
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    command: >
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri sqlite:////mlflow/mlflow.db
+        --default-artifact-root /mlflow/artifacts
+    networks:
+      - app-net
+
+  flask-app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: flask-local
+    ports:
+      - "8080:8080"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    depends_on:
+      - mlflow
+    networks:
+      - app-net
+
+volumes:
+  mlflow_data:
+
+networks:
+  app-net:
+    driver: bridge

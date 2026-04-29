@@ -41,6 +41,26 @@ churn-mlp/
 │   ├── raw/
 │   └── processed/
 ├── models/
+├── iac/
+│   ├── modules/
+│   │   ├── compute/     # EC2 + user_data (Docker + MLflow + Flask)
+│   │   ├── networking/  # Security Group
+│   │   ├── iam/         # IAM Role + Instance Profile + S3 policy
+│   │   ├── storage/     # S3 bucket para artefatos MLflow (opcional)
+│   │   └── keypair/     # Par de chaves RSA gerado via Terraform
+│   ├── flask-app/       # Flask placeholder (pré-migração para FastAPI)
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── outputs.tf
+│   ├── locals.tf
+│   └── versions.tf
+├── specs/
+│   ├── data-loader.md
+│   ├── feature-pipeline.md
+│   ├── mlp-model.md
+│   ├── baseline-comparison.md
+│   ├── api-predict.md
+│   └── iac.md
 ├── docs/
 │   ├── conventions.md
 │   ├── decisions.md
@@ -65,6 +85,21 @@ make run       # uvicorn src.api.app:app --reload
 make mlflow    # mlflow ui --port 5000
 ```
 
+### IAC (Terraform)
+
+```bash
+cd iac
+terraform init      # inicializa providers e backend S3
+terraform validate  # valida sintaxe HCL
+terraform plan      # preview das mudanças
+terraform apply     # provisiona infra na AWS
+terraform destroy   # destrói todos os recursos
+
+# Teste local (sem AWS)
+cd iac/flask-app
+docker compose -f docker-compose.local.yml up -d --build
+```
+
 ---
 
 ## Contexto detalhado
@@ -75,6 +110,7 @@ make mlflow    # mlflow ui --port 5000
 | `docs/decisions.md` | Decisões arquiteturais, experimentos MLflow, lições |
 | `docs/model_card.md` | Performance, limitações, vieses, cenários de falha |
 | `docs/monitoring_plan.md` | Métricas, alertas, playbook de resposta |
+| `specs/iac.md` | Arquitetura Terraform, módulos AWS, variáveis, critérios de aceitação |
 
 ---
 
