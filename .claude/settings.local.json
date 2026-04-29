@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(jupyter --version)",
+      "Bash(py -3 -m jupyter nbconvert --version)",
+      "Bash(py -3 -m pip install nbconvert)",
+      "Bash(py -3 -m nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=600 notebooks/feature_engineering.ipynb)",
+      "Bash(py -3 -m jupyter kernelspec list)",
+      "Bash(py -3 -m pip show torch structlog)",
+      "Bash(py -3 -m pip show sklearn joblib structlog)",
+      "Bash(py -3 -m pip show scikit-learn structlog)",
+      "Bash(py -3 -c \"import structlog\")",
+      "Bash(py -3 -m pip install structlog)",
+      "Bash(py -3 -m pip install -e \".[dev]\")",
+      "Bash(py -3 -m nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=600 --ExecutePreprocessor.kernel_name=python3 notebooks/feature_engineering.ipynb)",
+      "Bash(py -3 -m nbconvert --to notebook --execute --inplace --ExecutePreprocessor.timeout=36000 --ExecutePreprocessor.kernel_name=python3 notebooks/mlp_grid_search.ipynb)",
+      "Bash(py -3 -c ' *)"
+    ]
+  }
+}
