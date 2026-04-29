@@ -1,13 +1,13 @@
 import hashlib
+from pathlib import Path
 
 import pandas as pd
 import structlog
-from pathlib import Path
 
 log = structlog.get_logger()
 
 RANDOM_SEED = 42
-PROJECT_ROOT = Path.cwd().parent
+PROJECT_ROOT = Path.cwd()
 RAW_PATH = PROJECT_ROOT / "data" / "raw" / "WA_Fn-UseC_-Telco-Customer-Churn.csv"
 
 
