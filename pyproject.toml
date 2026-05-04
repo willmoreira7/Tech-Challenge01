@@ -19,6 +19,7 @@ dependencies = [
     "torch>=2.11.0",
     "torchaudio>=2.11.0",
     "torchvision>=0.26.0",
+    "uvicorn>=0.29.0",
 ]
 
 [tool.pytest.ini_options]
@@ -72,16 +73,20 @@ line-ending = "auto"
 [tool.taskipy.tasks]
 test = "pytest tests/ -v"
 test-cov = "pytest tests/ -v --cov=src --cov-report=html --cov-report=term"
+test-api = "pytest tests/integration/ -v"
 lint = "ruff check src/ tests/"
 lint-fix = "ruff check src/ tests/ --fix"
 format = "ruff format src/ tests/"
 format-check = "ruff format src/ tests/ --check"
 check = "task lint && task format-check && task test"
 clean = "rm -rf .pytest_cache .coverage htmlcov __pycache__ .ruff_cache"
+api = "uvicorn src.api.app:app --reload --port 8000"
+api-prod = "gunicorn -w 4 -k uvicorn.workers.UvicornWorker src.api.app:app --bind 0.0.0.0:8000"
 
 [dependency-groups]
 dev = [
     "jupyter>=1.1.1",
     "nbconvert>=7.17.1",
     "pytest-cov>=7.0",
+    "pytest-asyncio>=0.24.0",
 ]

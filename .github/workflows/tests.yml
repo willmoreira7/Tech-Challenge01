@@ -29,6 +29,9 @@ jobs:
       - name: Instalar dependências
         run: uv sync --group dev
 
+      - name: Treinar modelo
+        run: uv run python src/models/train.py
+
       - name: Lint com Ruff
         run: uv run ruff check src/ tests/ --output-format=github
 
