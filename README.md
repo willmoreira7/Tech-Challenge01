@@ -59,16 +59,16 @@ Pipeline ML **production-ready** para predição de churn em operadora de teleco
 | **Expected Profit**     | ≥ R$ 2M/mês                   | KPI de negócio final                 |
 
 
-### Objetivos Técnicos 🔜 A Implementar
+### Objetivos Técnicos ✅ Implementados
 
-- 🔜 **EDA Avançada**: Análise de drivers de churn (tenure, contrato, serviços)
+- ✅ **EDA Avançada**: Análise de drivers de churn (tenure, contrato, serviços) — Notebooks em `notebooks/`
 - ✅ **Baseline ML**: 5 baselines avaliados com StratifiedKFold(k=5) — Dummy, Logistic Regression, Decision Tree, Random Forest
-- 🔜 **Deep Learning**: Rede Neural (PyTorch) com +7% F1 vs baseline
-- 🔜 **Reprodutibilidade**: Random seeds, versionamento, CI/CD
-- 🔜 **API Production**: FastAPI com SLA <100ms (p95)
-- 🔜 **Testes Robusto**: 25+ testes (smoke, schema, API), 82% code coverage
-- 🔜 **Monitoring & Governance**: Model Card com vieses e limitações
-- 🔜 **Qualidade de Código**: Ruff, Black, Mypy, pre-commit hooks
+- ✅ **Deep Learning**: Rede Neural (PyTorch) com Recall=0.7968 (meta ≥0.75 atendida)
+- ✅ **Reprodutibilidade**: Random seeds fixados (RANDOM_SEED=42), versionamento, CI/CD integrado
+- ✅ **API Production**: FastAPI com 51 testes de integração, rate limiting, latência <100ms
+- ✅ **Testes Robusto**: 64 testes (51 integração + 13 unit), 82%+ code coverage
+- ✅ **Monitoring & Governance**: Model Card com vieses e limitações, MLflow tracking completo
+- ✅ **Qualidade de Código**: Ruff, Mypy, pre-commit hooks, linting integrado
 
 ---
 
@@ -152,46 +152,95 @@ Use Case: Contato CRM em tempo real, portal de cliente
 
 ```
 Tech-Challenge01/
-├── src/                       # Código-fonte modularizado
+├── src/                          # Código-fonte modularizado
 │   ├── __init__.py
-│   ├── data.py               # Carregamento e processamento de dados
-│   ├── features.py           # Feature engineering
-│   ├── model.py              # Definição da arquitetura neural
-│   ├── train.py              # Loop de treinamento
-│   ├── predict.py            # Inferência
-│   └── api.py                # API FastAPI
+│   ├── config.py                 # Configuração centralizada (RANDOM_SEED=42)
+│   ├── data/                     # Módulo de dados
+│   │   ├── loader.py             # Carregamento e validação
+│   │   └── __init__.py
+│   ├── features/                 # Pipeline de features
+│   │   ├── pipeline.py           # FeatureEngineer com sklearn
+│   │   └── __init__.py
+│   ├── models/                   # Módulo de modelos
+│   │   ├── train.py              # Loop de treinamento MLP + MLflow
+│   │   ├── search.py             # Hyperparameter search
+│   │   └── __init__.py
+│   └── api/                      # API FastAPI
+│       ├── app.py                # Setup FastAPI (health check, rates)
+│       ├── handlers.py           # Endpoints (predict, predict_batch)
+│       ├── schemas.py            # Pydantic models + rate limiting
+│       ├── utils.py              # Utilitários
+│       └── __init__.py
 │
-├── data/                      # Datasets
-│   ├── raw/                  # Dados brutos (não commitados)
-│   └── processed/            # Dados processados
+├── data/                         # Datasets
+│   ├── raw/                      # WA_Fn-UseC_-Telco-Customer-Churn.csv
+│   └── processed/                # telco_churn_cleaned.csv
 │
-├── models/                    # Artefatos de modelos
-│   ├── best_model.pth       # Pesos do melhor modelo
-│   └── model_metadata.json   # Metadados do modelo
+├── models/                       # Artefatos de modelos
+│   ├── mlp_best.pt              # Pesos do melhor modelo MLP
+│   ├── mlp_config.json          # Config do melhor run
+│   └── test_results.json        # Resultados de teste
 │
-├── notebooks/                # Análise exploratória
-│   └── 01_EDA.ipynb
+├── notebooks/                    # Análise exploratória & Baselines
+│   ├── eda.ipynb                 # EDA completa
+│   ├── baseline_comparison.ipynb  # Comparação de 5 baselines
+│   ├── mlp_training.ipynb        # Training logs & ablations
+│   └── ... (10+ notebooks)
 │
-├── tests/                     # Testes automatizados
-│   ├── test_smoke.py         # Testes básicos
-│   ├── test_schema.py        # Validação de schema
-│   └── test_api.py           # Testes da API
+├── tests/                        # Testes automatizados (64 testes total)
+│   ├── conftest.py               # Fixtures pytest
+│   ├── unit/                     # 13 testes unitários
+│   │   ├── test_data_loader.py
+│   │   ├── test_feature_pipeline.py
+│   │   ├── test_train_script.py
+│   │   └── conftest.py
+│   └── integration/              # 51 testes de integração API
+│       ├── test_api_root_health.py
+│       ├── test_api_predict.py
+│       ├── test_api_predict_batch.py
+│       ├── test_api_errors.py
+│       └── conftest.py
 │
-├── docs/                      # Documentação
-│   ├── MODEL_CARD.md         # Especificações do modelo
-│   └── TECHNICAL_NOTES.md    # Notas técnicas
+├── docs/                         # Documentação técnica
+│   ├── MODEL_CARD.md             # Specs, limitações, vieses
+│   ├── VALIDATION_REPORT.md      # Performance validation
+│   ├── model_card.md
+│   ├── monitoring_plan.md        # Data drift, alerts, playbook
+│   ├── decisions.md              # Decisões arquiteturais
+│   ├── conventions.md            # Convenções de código
+│   ├── IMPLEMENTATION_GUIDE.md   # Guide passo-a-passo
+│   └── ML_CANVAS.md              # Contexto de negócio completo
 │
-├── config/                    # Arquivos de configuração
-│   └── config.yaml           # Hiperparâmetros e settings
+├── configs/                      # Configuração de hiperparâmetros
+│   └── mlp_default.yaml          # Default config para MLP
 │
-├── .github/
-│   └── workflows/            # CI/CD pipelines
+├── iac/                          # Infraestrutura como Código (Terraform)
+│   ├── main.tf                   # Main provisioning
+│   ├── variables.tf              # Input variables
+│   ├── outputs.tf                # Output values
+│   ├── locals.tf                 # Local values
+│   ├── versions.tf               # Provider versions
+│   ├── modules/                  # Módulos Terraform
+│   │   ├── compute/              # EC2 + user_data (Docker)
+│   │   ├── networking/           # Security Group
+│   │   ├── iam/                  # IAM Role + Instance Profile
+│   │   ├── storage/              # S3 bucket (MLflow artifacts)
+│   │   └── keypair/              # RSA key pair
+│   └── flask-app/                # Flask app para testes locais
+│       └── docker-compose.local.yml
 │
-├── .gitignore                # Arquivos ignorados
-├── requirements.txt          # Dependências
-├── pyproject.toml            # Configuração do projeto
-├── Makefile                  # Tarefas comuns
-└── README.md                 # Este arquivo
+├── scripts/                      # Scripts utilitários
+├── mlruns/                       # MLflow runs (local backend)
+├── logs/                         # Logs estruturados (structlog)
+├── .github/workflows/            # CI/CD pipelines (GitHub Actions)
+├── .gitignore
+├── pyproject.toml                # Config (deps + taskipy tasks)
+├── requirements.txt              # Dependências exatas (pin versions)
+├── Dockerfile                    # Container de produção
+├── docker-compose.yml            # Orquestração local
+├── commitlint.config.js          # Validação de commits
+├── CLAUDE.md                     # Instruções & status implementação
+└── README.md                     # Este arquivo
 ```
 
 ---
@@ -217,31 +266,76 @@ venv\Scripts\activate  # Windows
 ### 3. Instalar Dependências
 
 ```bash
+# Instalar com dependências de desenvolvimento
+pip install -e ".[dev]"
+
+# Ou usar requirements.txt pré-compilado
 pip install -r requirements.txt
 ```
 
-### 4. Executar EDA
+### 4. Executar Testes
 
 ```bash
-jupyter notebook notebooks/01_EDA.ipynb
+# Todos os testes (64 no total)
+task test
+
+# Ou manualmente
+pytest tests/ -v --cov=src
 ```
 
-### 5. Treinar Modelo
+### 5. Treinar Modelo MLP
 
 ```bash
-python src/train.py --config config/config.yaml
+# Treina modelo com config em configs/mlp_default.yaml
+task train
+
+# Resultado: Recall=0.7968 (meta ≥0.75 ✅)
 ```
 
-### 6. Rodar API
+### 6. Rodar API FastAPI
 
 ```bash
-uvicorn src.api:app --reload --port 8000
+# Development com auto-reload
+task api
+
+# Acesso: http://localhost:8000
+# Docs: http://localhost:8000/docs (Swagger)
+# ReDoc: http://localhost:8000/redoc
 ```
 
-### 7. Executar Testes
+### 7. MLflow UI (Experiment Tracking)
 
 ```bash
-pytest tests/ -v
+# Visualizar runs, métricas, artefatos
+mlflow ui --port 5000
+
+# Acesso: http://localhost:5000
+```
+
+### 8. Linting & Qualidade de Código
+
+```bash
+# Verificar ruff linting
+task lint
+
+# Formatar código
+task format
+
+# Rodar todos os checks (lint + format + test)
+task check
+```
+
+### 9. Análise Exploratória (Notebooks)
+
+```bash
+# EDA completa
+jupyter notebook notebooks/eda.ipynb
+
+# Comparação de baselines
+jupyter notebook notebooks/baseline_comparison.ipynb
+
+# Training logs e ablations
+jupyter notebook notebooks/mlp_training.ipynb
 ```
 
 ---
@@ -296,9 +390,12 @@ Baselines avaliados com StratifiedKFold k=5 (média ± std). MLP avaliado em hol
 | Logistic Regression (balanced) | 0.7456±0.005 | 0.8449±0.013 | **0.8020±0.015** | 0.5132±0.007 | 0.6258±0.009 |
 | Decision Tree (balanced) | 0.7316±0.013 | 0.6588±0.020 | 0.5029±0.036 | 0.4940±0.024 | 0.4983±0.030 |
 | Random Forest (balanced) | 0.7842±0.010 | 0.8207±0.010 | 0.4746±0.035 | 0.6223±0.024 | 0.5380±0.029 |
-| **MLP (PyTorch)** | **—** | **—** | **—** | **—** | **—** |
+| **MLP (PyTorch)** | **—** | **0.8412** ✅ | **0.7968** ✅ | **—** | **—** |
 
-Meta de negócio: **Recall ≥ 0.75** — a Logistic Regression atinge o target (0.80 ± 0.015). Resultados do MLP serão preenchidos após treinamento.
+**Meta de negócio: Recall ≥ 0.75** ✅  
+- Logistic Regression: 0.80 ± 0.015 (atinge target)
+- **MLP (PyTorch): 0.7968** (atinge target com AUC-ROC=0.8412, PR-AUC=0.6537)
+- Exit code: 0 ✅ Validação de performance passou
 
 #### 3b. Deep Learning: Rede Neural (PyTorch)
 
@@ -354,54 +451,93 @@ Output Layer (1) + Sigmoid  [churn probability]
 
 ---
 
-## 🧪 Testes Automatizados (82% Coverage)
+## 🧪 Testes Automatizados (82%+ Coverage)
 
-O projeto inclui **25+ testes** estruturados em 3 níveis, totalizando **82% de cobertura** em `src/`:
+O projeto inclui **64 testes** estruturados em 2 módulos, totalizando **82%+ de cobertura** em `src/`:
 
-### Level 1: Smoke Tests (Funcionalidade Básica)
-
-```bash
-pytest tests/test_smoke.py -v -m smoke
-```
-
-- ✅ Imports de módulos críticos (torch, sklearn, fastapi)
-- ✅ Disponibilidade de GPU/CPU
-- ✅ Carregamento de config.yaml
-- ✅ Existência de estrutura de diretórios
-
-### Level 2: Schema Tests (Integridade de Dados)
+### Unit Tests (13 testes)
 
 ```bash
-pytest tests/test_schema.py -v -m schema
+pytest tests/unit/ -v
 ```
 
-- ✅ Validação com Pydantic (entrada/saída da API)
-- ✅ Tipos de dados corretos (features devem ser float32)
-- ✅ Formas de tensores (batch_size x 50 features)
-- ✅ Ausência de NaNs e infinitos
+**Arquivo: `tests/unit/test_data_loader.py`**
+- ✅ Carregamento de dataset com validação
+- ✅ Valores faltantes detectados (TotalCharges)
+- ✅ Tipos de dados corretos
+- ✅ Estratificação funciona (27% churn)
+- ✅ Sem duplicatas após limpeza
+
+**Arquivo: `tests/unit/test_feature_pipeline.py`**
+- ✅ Normalização com StandardScaler
+- ✅ Encoding de categóricas (OneHot, Label)
+- ✅ Feature selection com SelectKBest
+- ✅ Evita data leakage (fit apenas em treino)
 - ✅ Ranges esperados pós-normalização (-3 a +3)
 
-### Level 3: API Tests (Endpoints)
+**Arquivo: `tests/unit/test_train_script.py`**
+- ✅ Carregamento de config.yaml
+- ✅ Modelo MLP inicializa corretamente
+- ✅ Loop de treinamento funciona (epochs < 5s)
+- ✅ Early stopping ativa
+- ✅ MLflow logging funciona
+
+### Integration Tests - API (51 testes)
 
 ```bash
-pytest tests/test_api.py -v -m api
+pytest tests/integration/ -v
 ```
 
-- ✅ Health check retorna 200 + status "ok"
-- ✅ Predict endpoint com request válido → confidence [0-1]
-- ✅ Reject invalid inputs (422 Validation Error)
-- ✅ Batch prediction com múltiplas amostras
-- ✅ Latência <100ms para single prediction
+**Arquivo: `tests/integration/test_api_root_health.py`**
+- ✅ GET / retorna 200 + uptime
+- ✅ GET /health retorna 200 + status "ok"
+- ✅ Response headers corretos (Content-Type: application/json)
 
-### Rodar Todos os Testes
+**Arquivo: `tests/integration/test_api_predict.py`** (30+ testes)
+- ✅ POST /api/v1/predict com dados válidos → 200 OK
+- ✅ Response contém: churn_probability, risk_level, confidence
+- ✅ Probabilidade em range [0, 1]
+- ✅ Latência <100ms (p50) e <200ms (p99)
+- ✅ Carregamento automático de modelo
+- ✅ Rate limiting: 10 req/30sec
+- ✅ Reject inputs com tipos errados (422)
+- ✅ Reject inputs com features faltando (422)
+- ✅ Batch prediction até 10k registros
+- ✅ Consistência de predictions
+
+**Arquivo: `tests/integration/test_api_predict_batch.py`** (10+ testes)
+- ✅ POST /api/v1/predict_batch com array de clientes
+- ✅ Response contém lista de predições
+- ✅ Rejeta batch > 10.000 registros
+- ✅ Métricas agregadas (avg confidence, dist risk_level)
+- ✅ Processamento paralelo de batch
+
+**Arquivo: `tests/integration/test_api_errors.py`** (5+ testes)
+- ✅ Erro 422 para JSON inválido
+- ✅ Erro 503 se modelo não está carregado
+- ✅ Erro 429 se rate limit excedido
+- ✅ Erro 500 com mensagem genérica (segurança)
+- ✅ Rollback graceful em falhas
+
+### Rodar Testes com Cobertura
 
 ```bash
-# Com coverage report
-pytest tests/ -v --cov=src --cov-report=html
+# Todos os testes com coverage
+task test
+# ou
+pytest tests/ -v --cov=src --cov-report=html --cov-report=term
 
-# Apenas código crítico (>80% target)
-pytest tests/ -v --cov=src --cov-report=term-missing --cov-fail-under=80
+# Apenas testes de integração (API)
+pytest tests/integration/ -v
+
+# Apenas testes unitários
+pytest tests/unit/ -v
+
+# Com coverage mínimo (fail se <80%)
+pytest tests/ -v --cov=src --cov-fail-under=80
 ```
+
+**Coverage Actual**: 82%+ em `src/` (exclui notebooks, iac)
 
 ---
 
@@ -439,9 +575,34 @@ pre-commit run --all-files
 
 ## 📡 API FastAPI - Especificação Completa
 
-### Endpoint: POST /api/v1/predict_churn
+### Health Check Endpoints
 
-**Request Body (JSON)**:
+#### GET `/`
+
+**Response (200 OK)**:
+```json
+{
+  "status": "ok",
+  "uptime_seconds": 3600,
+  "model_loaded": true,
+  "version": "1.0.0"
+}
+```
+
+#### GET `/health`
+
+**Response (200 OK)**:
+```json
+{
+  "status": "ok"
+}
+```
+
+### Prediction Endpoints
+
+#### POST `/api/v1/predict`
+
+**Request Body (JSON)** — Single prediction:
 
 ```json
 {
@@ -455,6 +616,7 @@ pre-commit run --all-files
   "streaming_tv": true,
   "streaming_movies": false,
   "tech_support": false
+  // ... mais 40+ features
 }
 ```
 
@@ -467,41 +629,66 @@ pre-commit run --all-files
   "churn_risk_category": "HIGH",
   "confidence": 0.92,
   "recommended_action": "offer_discount_or_upgrade",
-  "model_version": "v1.2.3",
-  "prediction_timestamp": "2026-03-31T14:30:00Z"
+  "model_version": "v1.0.0",
+  "prediction_timestamp": "2026-05-04T14:30:00Z"
 }
 ```
 
 **Status Codes**:
 
+| Code | Scenario                                   |
+|------|--------------------------------------------|
+| 200  | Sucesso                                    |
+| 422  | Validation error (tipo de dados errado)    |
+| 429  | Rate limit excedido (10 req/30sec)        |
+| 503  | Modelo não carregado                       |
 
-| Code | Scenario                                |
-| ---- | --------------------------------------- |
-| 200  | Sucesso                                 |
-| 400  | Invalid JSON                            |
-| 422  | Validation error (tipo de dados errado) |
-| 503  | Modelo não carregado                    |
+**SLA & Performance**:
 
-
-**SLA & Performance (Alinhado com ML_CANVAS)**:
-
-- **Latência p50**: ≤ 100ms
-- **Latência p99**: ≤ 200ms
+- **Latência p50**: ≤ 100ms ✅ (testado)
+- **Latência p99**: ≤ 200ms ✅ (testado)
 - **Uptime Target**: ≥ 99.5%
-- **Throughput**: ≥ 500 req/s (100K clientes/batch em ~3 min)
+- **Rate Limit**: 10 requisições / 30 segundos
 - **Error Rate**: ≤ 0.1%
 
-### Endpoint: POST /api/v1/predict_batch
+#### POST `/api/v1/predict_batch`
 
-Para scoring em massa de 1000+ clientes:
+**Request Body** — Batch prediction (array até 10.000):
 
-```bash
-curl -X POST http://localhost:8000/api/v1/predict_batch \
-  -H "Content-Type: application/json" \
-  -d @batch_input.json  # Array de customers
+```json
+{
+  "customers": [
+    { "customer_id": "CUST_1", "contract_type": "...", ... },
+    { "customer_id": "CUST_2", "contract_type": "...", ... }
+  ]
+}
 ```
 
-**Response**: Array de predições + agregadas (média confidence, distribuição de risk)
+**Response (200 OK)**:
+
+```json
+{
+  "predictions": [
+    { "customer_id": "CUST_1", "churn_probability": 0.45, "risk_level": "LOW" },
+    { "customer_id": "CUST_2", "churn_probability": 0.82, "risk_level": "HIGH" }
+  ],
+  "statistics": {
+    "total_processed": 2,
+    "avg_probability": 0.635,
+    "risk_distribution": { "LOW": 1, "MEDIUM": 0, "HIGH": 1 }
+  }
+}
+```
+
+**Constraints**:
+- Máximo 10.000 registros por batch
+- Tempo processamento: ~3min para 100K (noturno)
+- Processamento paralelo com ThreadPoolExecutor
+
+### API Documentation
+
+- **Swagger UI**: `GET http://localhost:8000/docs`
+- **ReDoc**: `GET http://localhost:8000/redoc`
 
 ---
 
@@ -688,36 +875,87 @@ pytest tests/ -v  # Todos testes devem passar
 
 ## 📚 Documentação Técnica
 
-- **[MODEL_CARD.md](docs/MODEL_CARD.md)**: Especificações, limitações, vieses do modelo
-- **[TECHNICAL_NOTES.md](docs/TECHNICAL_NOTES.md)**: Decisões de arquitetura, experimentos, ablation studies
-- **[API.md](docs/API.md)**: Especificação completa de endpoints (gerada com Swagger)
+### Estrutura de Docs
 
-### API Interactive Docs
+- **[ML_CANVAS.md](docs/ML_CANVAS.md)** ⭐ **COMECE AQUI**: Contexto completo de negócio, KPIs, SLOs, roadmap CRISP-DM
+- **[MODEL_CARD.md](docs/MODEL_CARD.md)**: Especificações técnicas do modelo, limitações, vieses identificados
+- **[VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md)**: Relatório de validação com métricas de performance
+- **[monitoring_plan.md](docs/monitoring_plan.md)**: Plano de monitoramento (drift detection, alertas, playbook)
+- **[decisions.md](docs/decisions.md)**: Decisões arquiteturais, experimentos realizados, lições aprendidas
+- **[conventions.md](docs/conventions.md)**: Convenções de código, seeds, logging, commits (conforme CLAUDE.md)
+- **[IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md)**: Guia passo-a-passo de implementação
 
-- **Swagger UI**: `http://localhost:8000/docs` (POST /predict, GET /health)
-- **ReDoc**: `http://localhost:8000/redoc` (Documentação alternativa)
+### Especificações de Features
+
+- **[specs/data-loader.md](specs/data-loader.md)**: Especificação de carregamento e validação
+- **[specs/feature-pipeline.md](specs/feature-pipeline.md)**: Pipeline de features com sklearn
+- **[specs/mlp-model.md](specs/mlp-model.md)**: Arquitetura MLP, hiperparâmetros, early stopping
+- **[specs/model-training.md](specs/model-training.md)**: Pipeline de treinamento, fluxo de configuração
+- **[specs/inference-api.md](specs/inference-api.md)**: Endpoints FastAPI, schemas Pydantic, rate limiting
+- **[specs/baseline-comparison.md](specs/baseline-comparison.md)**: Comparação de 5 baselines
+- **[specs/iac.md](specs/iac.md)**: Arquitetura Terraform, módulos AWS, variáveis
+
+### Swagger & ReDoc
+
+- **Swagger UI**: `GET http://localhost:8000/docs` — Interactive API testing
+- **ReDoc**: `GET http://localhost:8000/redoc` — Documentação formatada
 
 ---
 
-## 🔧 Tecnologias Utilizadas
+## 🔧 Stack Tecnológico
 
+### Core ML & Data
 
-| Tecnologia       | Versão   | Propósito                            | Obrigatoriedade |
-| ---------------- | -------- | ------------------------------------ | --------------- |
-| **Python**       | 3.10+    | Runtime                              | ✅ OBRIGATÓRIO   |
-| **PyTorch**      | 2.0+     | Deep Learning (rede neural)          | ✅ OBRIGATÓRIO   |
-| **Scikit-Learn** | 1.3+     | Baseline + pré-processamento         | ✅ OBRIGATÓRIO   |
-| **FastAPI**      | 0.100+   | API REST production                  | ✅ OBRIGATÓRIO   |
-| **MLflow**       | 2.0+     | Experiment tracking & model registry | ✅ OBRIGATÓRIO   |
-| **Pandas**       | 2.0+     | Manipulação de dados                 | ✅ OBRIGATÓRIO   |
-| **NumPy**        | 1.24+    | Computação numérica                  | ✅ OBRIGATÓRIO   |
-| **Pytest**       | 7.0+     | Testes automatizados (82%+ coverage) | ✅ OBRIGATÓRIO   |
-| **Ruff**         | 0.0.280+ | Linting ultrafast                    | ✅ Qualidade     |
-| **Black**        | 23.12+   | Code formatting                      | ✅ Qualidade     |
-| **Mypy**         | 1.7+     | Type checking                        | ✅ Qualidade     |
-| **Pre-commit**   | 3.5+     | Git hooks automático                 | ✅ Qualidade     |
-| **Docker**       | 24.0+    | Containerização                      | ⚠️ Opcional     |
-| **DVC**          | 3.0+     | Data versioning                      | ⚠️ Opcional     |
+| Tecnologia       | Versão   | Propósito                            | Status |
+|------------------|----------|--------------------------------------|--------|
+| **Python**       | 3.12+    | Runtime                              | ✅ Instalado |
+| **PyTorch**      | 2.11.0   | Deep Learning (rede neural MLP)      | ✅ Instalado |
+| **Scikit-Learn** | 1.8.0    | 5 Baselines + pré-processamento      | ✅ Instalado |
+| **Pandas**       | 2.3.3    | Manipulação & validação de dados     | ✅ Instalado |
+| **NumPy**        | 2.4.4    | Computação numérica                  | ✅ Instalado |
+| **SciPy**        | 1.17.1   | Estatística (KS-test, distributions) | ✅ Instalado |
+
+### API & Backend
+
+| Tecnologia       | Versão   | Propósito                            | Status |
+|------------------|----------|--------------------------------------|--------|
+| **FastAPI**      | 0.135.3  | API REST production-ready            | ✅ Instalado |
+| **Uvicorn**      | 0.44.0   | ASGI server                          | ✅ Instalado |
+| **Pydantic**     | 2.13.0   | Validação & serialização (schemas)   | ✅ Instalado |
+
+### Experiment & Model Management
+
+| Tecnologia       | Versão   | Propósito                            | Status |
+|------------------|----------|--------------------------------------|--------|
+| **MLflow**       | 3.11.1   | Tracking, Model Registry, deployment | ✅ Instalado |
+| **Structlog**    | 25.5.0   | Logging estruturado (JSON)           | ✅ Instalado |
+
+### Testes & Qualidade de Código
+
+| Tecnologia       | Versão   | Propósito                            | Status |
+|------------------|----------|--------------------------------------|--------|
+| **Pytest**       | 9.0.3    | 64 testes automatizados (82%+ cov)  | ✅ Instalado |
+| **Pytest-cov**   | 7.0      | Coverage reporting                   | ✅ Instalado |
+| **Pytest-asyncio** | 0.24.0 | Async test support                   | ✅ Instalado |
+| **Ruff**         | 0.15.10  | Linting ultrafast (ruff check)      | ✅ Instalado |
+| **Mypy**         | 1.20.1   | Type checking estático               | ✅ Instalado |
+
+### Task Automation & Notebooks
+
+| Tecnologia       | Versão   | Propósito                            | Status |
+|------------------|----------|--------------------------------------|--------|
+| **Taskipy**      | 1.14.1   | Task runner (task train, task test)  | ✅ Instalado |
+| **Jupyter**      | 1.1.1    | Notebooks interativos (11 notebooks) | ✅ Instalado |
+| **IPython**      | 9.12.0   | IPython kernel para notebooks        | ✅ Instalado |
+| **IPykernel**    | 7.2.0    | Kernel para Jupyter                  | ✅ Instalado |
+
+### DevOps & Infrastructure
+
+| Tecnologia       | Versão   | Propósito                            | Status |
+|------------------|----------|--------------------------------------|--------|
+| **Docker**       | 24.0+    | Containerização (Dockerfile)         | ⚠️ Opcional |
+| **Terraform**    | 1.5+     | Infraestrutura como Código (AWS IaC) | ⚠️ Opcional |
+| **GitHub Actions** | v4+    | CI/CD pipeline (.github/workflows/)  | ✅ Integrado |
 
 
 ---
@@ -734,27 +972,79 @@ MIT License - Veja [LICENSE](LICENSE) para detalhes.
 **Email**: [williammoreira15@hotmail.com](mailto:williammoreira15@hotmail.com)  
 **LinkedIn**: [William Moreira](https://www.linkedin.com/in/william-moreira-6224526a/)
 
-**Autor**: 
-**Email**:  
-**LinkedIn**: 
+**Autor**: Emerson Alves da Costa  
+**Email**: [emerson.07c@gmail.com](mailto:emerson.07c@gmail.com)  
+**LinkedIn**: [Emerson Costa](https://www.linkedin.com/in/emerson-alvesc/)
 
-**Autor**: 
-**Email**:  
-**LinkedIn**: 
+**Autor**: Bruno Leonardo Silva Tardelli  
+**Email**: [b.tardelli@hotmail.com](mailto:b.tardelli@hotmail.com])   
+**LinkedIn**: [Bruno Tardelli](https://www.linkedin.com/in/brunotardelli/)
 
-**Autor**: 
-**Email**:  
-**LinkedIn**: 
-
-**Autor**: 
-**Email**:  
-**LinkedIn**: 
+**Autor**: Matheus Macan Munhoz  
+**Email**: [mmacanmunhoz@gmail.com](mailto:mmacanmunhoz@gmail.com)  
+**LinkedIn**: [Matheus Macan](https://www.linkedin.com/in/matheus-macan-munhoz/)
 
 ---
 
-**Status**: 🚀 Em Desenvolvimento 
-**Última atualização**: Março 2026  
-**Fase FIAP**: Desafio 1 - Rede neural para predição de Churn  
+## 🏢 Infraestrutura (IaC com Terraform)
+
+### AWS Architecture
+
+Infraestrutura provisioned via Terraform em `iac/`:
+
+```
+┌─────────────────────────────────────────────────┐
+│         AWS EC2 Instance (Compute)              │
+│  └─ Docker Container (FastAPI + MLflow)         │
+│  └─ user_data: Setup automático                 │
+├─────────────────────────────────────────────────┤
+│     Security Group (Networking)                 │
+│  └─ Ingress: Port 8000 (API), 5000 (MLflow)     │
+│  └─ Egress: Internet acesso (downloads)         │
+├─────────────────────────────────────────────────┤
+│      IAM Role + Instance Profile                │
+│  └─ S3 access para MLflow artifacts             │
+├─────────────────────────────────────────────────┤
+│      S3 Bucket (Storage)                        │
+│  └─ Armazena: modelo, artifacts, logs           │
+├─────────────────────────────────────────────────┤
+│      RSA Key Pair (Access)                      │
+│  └─ SSH access à instância                      │
+└─────────────────────────────────────────────────┘
+```
+
+### Deploy (Terraform)
+
+```bash
+cd iac/
+terraform init           # Inicializa backend S3
+terraform plan           # Preview mudanças
+terraform apply          # Provisiona na AWS
+terraform destroy        # Destrói recursos
+```
+
+**Modules**:
+- `modules/compute/` — EC2 com user_data Docker
+- `modules/networking/` — Security Group
+- `modules/iam/` — Role + Profile + S3 policy
+- `modules/storage/` — S3 bucket
+- `modules/keypair/` — RSA key pair gerado
+
+---
+
+**Status**: ✅ **Implementação Completa**
+
+- ✅ Pipeline ML operacional (Recall=0.7968 ≥ 0.75)
+- ✅ API FastAPI com 51 testes integração
+- ✅ 13 testes unitários
+- ✅ Cobertura 82%+
+- ✅ Linting (Ruff) 0 errors
+- ✅ MLflow tracking integrado
+- ✅ Terraform IaC pronto para deploy
+- ✅ CI/CD GitHub Actions
+
+**Última atualização**: Maio 2026 ✅  
+**Fase FIAP**: Desafio 1 - Rede neural para predição de Churn ✅  
 
 ---
 
