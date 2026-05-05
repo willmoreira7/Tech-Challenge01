@@ -26,4 +26,8 @@ resource "aws_security_group" "this" {
   }
 
   tags = merge(var.tags, { Name = "${var.project_name}-sg" })
+
+  lifecycle {
+    ignore_changes = [ingress]
+  }
 }
