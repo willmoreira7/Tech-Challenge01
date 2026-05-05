@@ -124,4 +124,4 @@ Matriz de confusão: TP=475 · FP=484 · FN=86 · TN=1068
 
 - Retreino recomendado: trimestral ou quando AUC-ROC cair >5% abaixo de 0.850
 - Repositório: Tech-Challenge01 (branch `main`)
-- CI/CD: `.github/workflows/ci-cd.yml` — treino automático quando `src/models/`, `src/features/` ou `src/data/` mudam em `main`
+- CI/CD: `cd.yml` — treino + build + smoke ao criar pre-release; `deploy.yml` — deploy na EC2 ao promover para release. Ver processo completo no README.
