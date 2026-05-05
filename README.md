@@ -909,8 +909,7 @@ Internet
 | API FastAPI         | [https://api.pocsarcotech.com](https://api.pocsarcotech.com)                       |
 | MLflow UI           | [https://mlflow.pocsarcotech.com/mlflow/](https://mlflow.pocsarcotech.com/mlflow/) |
 | API Docs            | [https://api.pocsarcotech.com/docs](https://api.pocsarcotech.com/docs)             |
-| API (direto EC2)    | [http://100.24.64.84:8080](http://100.24.64.84:8080)                               |
-| MLflow (direto EC2) | [http://100.24.64.84:5000](http://100.24.64.84:5000)                               |
+
 
 
 ### Deploy (Terraform)
