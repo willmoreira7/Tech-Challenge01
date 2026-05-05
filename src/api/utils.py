@@ -1,12 +1,14 @@
 """Utilitários para a API: middleware e carregamento de modelos."""
 
 import json
+import os
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 
+import mlflow.pytorch
 import structlog
 import torch
 from fastapi import FastAPI, Request
@@ -84,30 +86,51 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             raise
 
 
+def _load_from_mlflow(model_name: str) -> ChurnMLP:
+    """Carrega versão Production do modelo direto do MLflow Model Registry."""
+    model_uri = f"models:/{model_name}/Production"
+    model = mlflow.pytorch.load_model(model_uri)
+    model.eval()
+    log.info("model.loaded_from_registry", uri=model_uri)
+    return model
+
+
+def _load_from_file(model_path: str, config_path: str) -> ChurnMLP:
+    """Carrega modelo a partir de arquivo local (fallback)."""
+    with open(config_path) as f:
+        config = json.load(f)
+    model = ChurnMLP(
+        input_dim=config.get("input_dim", 30),
+        hidden=config.get("hidden_dims", [64, 32]),
+        dropout=config.get("dropout", [0.3, 0.2]),
+    )
+    state_dict = torch.load(model_path, weights_only=True)
+    model.load_state_dict(state_dict)
+    model.eval()
+    log.info("model.loaded_from_file", path=model_path)
+    return model
+
+
 def load_model(model_path: str | None = None, config_path: str | None = None) -> ChurnMLP:
-    """Carregar modelo MLP com arquitetura definida pelo config JSON."""
+    """Carrega modelo do MLflow Registry (remoto) ou de arquivo local como fallback."""
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "")
+    model_name = os.getenv("MLFLOW_MODEL_NAME", "churn-mlp")
+    is_remote = tracking_uri.startswith("http://") or tracking_uri.startswith("https://")
+
+    if is_remote:
+        try:
+            return _load_from_mlflow(model_name)
+        except Exception as exc:
+            log.warning("model.registry_fallback", error=str(exc), fallback="arquivo local")
+
+    project_root = Path(__file__).parent.parent.parent
+    if model_path is None:
+        model_path = str(project_root / "models" / "mlp_best.pt")
+    if config_path is None:
+        config_path = str(project_root / "models" / "mlp_config.json")
+
     try:
-        project_root = Path(__file__).parent.parent.parent
-        if model_path is None:
-            model_path = str(project_root / "models" / "mlp_best.pt")
-        if config_path is None:
-            config_path = str(project_root / "models" / "mlp_config.json")
-
-        with open(config_path) as f:
-            config = json.load(f)
-
-        model = ChurnMLP(
-            input_dim=config.get("input_dim", 30),
-            hidden=config.get("hidden_dims", [64, 32]),
-            dropout=config.get("dropout", [0.3, 0.2]),
-        )
-
-        state_dict = torch.load(model_path, weights_only=True)
-        model.load_state_dict(state_dict)
-        model.eval()
-
-        log.info("model.loaded", path=model_path, config=config_path)
-        return model
+        return _load_from_file(model_path, config_path)
     except Exception as exc:
         log.error("model.load_failed", path=model_path, error=str(exc))
         raise
