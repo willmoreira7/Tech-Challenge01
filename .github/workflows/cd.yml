@@ -2,14 +2,14 @@ name: CD
 
 on:
   push:
-    branches: [main]
+    tags: ['v*.*.*']
 
 env:
   PYTHON_VERSION: "3.12"
   IMAGE: mmacanmunhoz/churn-api
 
 concurrency:
-  group: cd-main
+  group: cd-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
@@ -17,29 +17,9 @@ jobs:
   test:
     name: Lint & Testes
     runs-on: ubuntu-latest
-    outputs:
-      ml_changed: ${{ steps.filter.outputs.ml }}
-      api_changed: ${{ steps.filter.outputs.api }}
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Detectar arquivos alterados
-        uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            ml:
-              - 'src/models/**'
-              - 'src/features/**'
-              - 'src/data/**'
-              - 'configs/**'
-            api:
-              - 'src/api/**'
-              - 'src/models/**'
-              - 'src/features/**'
-              - 'Dockerfile'
-              - 'pyproject.toml'
 
       - uses: astral-sh/setup-uv@v5
         with:
@@ -77,7 +57,7 @@ jobs:
           PYTHONPATH: .
           MLFLOW_TRACKING_URI: ./mlruns
           MLFLOW_EXPERIMENT_NAME: churn-mlp
-          MLFLOW_RUN_NAME: rc-${{ github.sha }}
+          MLFLOW_RUN_NAME: ${{ github.ref_name }}
         run: uv run python src/models/train.py --run-name "$MLFLOW_RUN_NAME"
 
       - name: Resumo de métricas
@@ -95,7 +75,7 @@ jobs:
       - name: Upload artefatos
         uses: actions/upload-artifact@v4
         with:
-          name: model-artifacts-${{ github.sha }}
+          name: model-artifacts-${{ github.ref_name }}
           path: |
             models/mlp_best.pt
             models/pipeline.pkl
@@ -103,21 +83,10 @@ jobs:
             models/test_results.json
           retention-days: 30
 
-      - name: Salvar artefatos no cache
-        uses: actions/cache/save@v4
-        with:
-          path: |
-            models/mlp_best.pt
-            models/pipeline.pkl
-            models/mlp_config.json
-            models/test_results.json
-          key: model-artifacts-main-${{ github.sha }}
-
-  # ── 3. Testes de integração (apenas após treino) ────────────────────────
+  # ── 3. Testes de integração ──────────────────────────────────────────────
   integration-test:
     name: Testes de Integração
     needs: [test, train-rc]
-    if: needs.train-rc.result == 'success'
     runs-on: ubuntu-latest
 
     steps:
@@ -134,7 +103,7 @@ jobs:
       - name: Baixar artefatos do treino
         uses: actions/download-artifact@v4
         with:
-          name: model-artifacts-${{ github.sha }}
+          name: model-artifacts-${{ github.ref_name }}
           path: models/
 
       - name: Suite completa
@@ -143,7 +112,7 @@ jobs:
       - name: Upload cobertura
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ github.sha }}
+          name: coverage-${{ github.ref_name }}
           path: coverage.xml
           retention-days: 14
 
@@ -151,40 +120,18 @@ jobs:
   build-rc:
     name: Build & Smoke RC
     needs: [test, train-rc, integration-test]
-    if: |
-      always() &&
-      needs.test.result == 'success' &&
-      (
-        needs.test.outputs.api_changed == 'true' ||
-        needs.train-rc.result == 'success'
-      )
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    env:
-      RC_TAG: rc-${{ github.sha }}
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Baixar artefatos (se treino rodou neste workflow)
-        if: needs.train-rc.result == 'success'
+      - name: Baixar artefatos do treino
         uses: actions/download-artifact@v4
         with:
-          name: model-artifacts-${{ github.sha }}
+          name: model-artifacts-${{ github.ref_name }}
           path: models/
-
-      - name: Restaurar artefatos do último treino (se treino foi pulado)
-        if: needs.train-rc.result == 'skipped'
-        uses: actions/cache/restore@v4
-        with:
-          path: |
-            models/mlp_best.pt
-            models/pipeline.pkl
-            models/mlp_config.json
-            models/test_results.json
-          key: model-artifacts-main-${{ github.sha }}
-          restore-keys: model-artifacts-main-
 
       - name: Verificar artefatos presentes
         run: ls -lh models/mlp_best.pt models/pipeline.pkl models/mlp_config.json
@@ -203,11 +150,11 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.IMAGE }}:${{ env.RC_TAG }}
+          tags: ${{ env.IMAGE }}:${{ github.ref_name }}
 
       - name: Smoke test no RC
         run: |
-          docker run -d --name smoke-api -p 8080:8080 ${{ env.IMAGE }}:${{ env.RC_TAG }}
+          docker run -d --name smoke-api -p 8080:8080 ${{ env.IMAGE }}:${{ github.ref_name }}
 
           for i in $(seq 1 12); do
             curl -sf http://localhost:8080/health > /dev/null 2>&1 && break
@@ -236,7 +183,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Extrai métricas do modelo se disponíveis
           METRICS_TABLE=""
           if [ -f models/test_results.json ]; then
             METRICS_TABLE=$(python -c "
@@ -248,11 +194,11 @@ jobs:
           ")
           fi
 
-          gh release create "${{ env.RC_TAG }}" \
+          gh release create "${{ github.ref_name }}" \
             --prerelease \
-            --title "RC ${{ env.RC_TAG }}" \
+            --title "RC ${{ github.ref_name }}" \
             --target "${{ github.sha }}" \
-            --notes "## Release Candidate \`${{ env.RC_TAG }}\`
+            --notes "## Release Candidate \`${{ github.ref_name }}\`
 
           > Smoke test passou. Para deployar em produção, promova este pre-release para release.
 
@@ -262,7 +208,7 @@ jobs:
 
           ### Imagem Docker
           \`\`\`
-          docker pull ${{ env.IMAGE }}:${{ env.RC_TAG }}
+          docker pull ${{ env.IMAGE }}:${{ github.ref_name }}
           \`\`\`
 
           ### Métricas do modelo
@@ -274,4 +220,5 @@ jobs:
           \`${{ github.sha }}\`"
 
           echo "## Pre-Release criado ✅" >> $GITHUB_STEP_SUMMARY
-          echo "Promova em: https://github.com/${{ github.repository }}/releases/tag/${{ env.RC_TAG }}" >> $GITHUB_STEP_SUMMARY
+          echo "Tag: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Promova em: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY

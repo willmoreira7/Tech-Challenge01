@@ -18,7 +18,14 @@
       "Bash(git *)",
       "Bash(python3 *)",
       "Bash(asdf which *)",
-      "Bash(/usr/bin/python3.12 *)"
+      "Bash(/usr/bin/python3.12 *)",
+      "Bash(python3.12 *)",
+      "Bash(pip show *)",
+      "Bash(asdf current *)",
+      "Bash(asdf list *)",
+      "Bash(asdf set *)",
+      "Bash(pip install *)",
+      "Bash(ruff check *)"
     ]
   }
 }
