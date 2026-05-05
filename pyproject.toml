@@ -25,6 +25,9 @@ dependencies = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "smoke: checagens rápidas de sanidade (CI, sem depender de modelo treinado)",
+]
 
 [tool.ruff.lint]
 # Regras a habilitar
@@ -72,6 +75,7 @@ line-ending = "auto"
 # =============================================================================
 [tool.taskipy.tasks]
 test = "pytest tests/ -v"
+smoke = "pytest tests/smoke -v -m smoke"
 test-cov = "pytest tests/ -v --cov=src --cov-report=html --cov-report=term"
 test-api = "pytest tests/integration/ -v"
 lint = "ruff check src/ tests/"
