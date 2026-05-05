@@ -45,12 +45,13 @@ churn-mlp/
 ├── models/
 ├── iac/
 │   ├── modules/
-│   │   ├── compute/     # EC2 + user_data (Docker + MLflow + Flask)
+│   │   ├── compute/     # EC2 + user_data (Docker + MLflow + FastAPI)
 │   │   ├── networking/  # Security Group
 │   │   ├── iam/         # IAM Role + Instance Profile + S3 policy
-│   │   ├── storage/     # S3 bucket para artefatos MLflow (opcional)
-│   │   └── keypair/     # Par de chaves RSA gerado via Terraform
-│   ├── flask-app/       # Flask placeholder (pré-migração para FastAPI)
+│   │   ├── storage/     # S3 bucket para artefatos MLflow
+│   │   ├── keypair/     # Par de chaves RSA gerado via Terraform
+│   │   └── alb/         # ALB + listener HTTPS + host-based rules
+│   ├── flask-app/       # Flask placeholder (testes locais sem AWS)
 │   ├── main.tf
 │   ├── variables.tf
 │   ├── outputs.tf
@@ -161,7 +162,18 @@ docker compose -f docker-compose.local.yml up -d --build
 - **Testes**: 13 testes unitários (todos passando)
 - **CI/CD**: Integrado em `.github/workflows/tests.yml` — treina antes de rodar testes
 
+### ✅ Infraestrutura AWS (Baseado em `specs/iac.md`)
+- **Status**: Deployada e operacional
+- **Plataforma**: EC2 (t3.medium, Ubuntu 22.04) + ALB + Route53 + ACM
+- **URLs**:
+  - API: https://api.pocsarcotech.com
+  - MLflow: https://mlflow.pocsarcotech.com/mlflow/
+- **Módulos Terraform**: keypair, networking, iam, storage, compute, alb
+- **Backend remoto**: S3 (`tech-terraform-poc` / `environment-pos/terraform.tfstate`)
+- **Ref**: [iac/](iac/), [specs/iac.md](specs/iac.md), [docs/DECISIONS.md](docs/DECISIONS.md#deploy-etapa-4)
+
 ### ✅ Validação Completa
 - **Linting**: ruff 0 errors
 - **Testes**: 64/64 passando (51 API + 13 training)
 - **Treinamento**: Exit code 0, métrica de negócio atendida (Recall=0.8467 ≥ 0.75)
+- **Deploy**: API e MLflow acessíveis via HTTPS em produção

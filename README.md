@@ -11,6 +11,14 @@ Tests
 
 Pipeline ML **production-ready** para predição de churn em operadora de telecomunicações. Development segue padrões de engenharia de ML profissional com rede neural (PyTorch), baseline (Scikit-Learn), testes automatizados (82% coverage), API REST e governance completa.
 
+### 🌐 URLs de Produção (AWS)
+
+| Serviço | URL |
+|---------|-----|
+| **API FastAPI** | https://api.pocsarcotech.com |
+| **MLflow UI** | https://mlflow.pocsarcotech.com/mlflow/ |
+| **API Docs (Swagger)** | https://api.pocsarcotech.com/docs |
+
 ---
 
 ## 🎯 Contexto de Negócio & Objetivos
@@ -732,8 +740,10 @@ pre-commit run --all-files
 
 ### API Documentation
 
-- **Swagger UI**: `GET http://localhost:8000/docs`
-- **ReDoc**: `GET http://localhost:8000/redoc`
+| Ambiente | Swagger UI | ReDoc |
+|----------|-----------|-------|
+| **Produção** | https://api.pocsarcotech.com/docs | https://api.pocsarcotech.com/redoc |
+| **Local** | http://localhost:8000/docs | http://localhost:8000/redoc |
 
 ---
 
@@ -906,8 +916,10 @@ pytest tests/ -v  # Todos testes devem passar
 
 ### Swagger & ReDoc
 
-- **Swagger UI**: `GET http://localhost:8000/docs` — Interactive API testing
-- **ReDoc**: `GET http://localhost:8000/redoc` — Documentação formatada
+| Ambiente | Swagger UI | ReDoc |
+|----------|-----------|-------|
+| **Produção** | https://api.pocsarcotech.com/docs | https://api.pocsarcotech.com/redoc |
+| **Local** | http://localhost:8000/docs | http://localhost:8000/redoc |
 
 ---
 
@@ -1002,31 +1014,49 @@ MIT License - Veja [LICENSE](LICENSE) para detalhes.
 Infraestrutura provisioned via Terraform em `iac/`:
 
 ```
+Internet
+    │ HTTPS (443)
+    ▼
 ┌─────────────────────────────────────────────────┐
-│         AWS EC2 Instance (Compute)              │
-│  └─ Docker Container (FastAPI + MLflow)         │
-│  └─ user_data: Setup automático                 │
+│  ALB (Application Load Balancer)                │
+│  └─ api.pocsarcotech.com  → EC2:8080  (FastAPI) │
+│  └─ mlflow.pocsarcotech.com → EC2:5000 (MLflow) │
+│  └─ ACM: wildcard cert *.pocsarcotech.com       │
 ├─────────────────────────────────────────────────┤
-│     Security Group (Networking)                 │
-│  └─ Ingress: Port 8000 (API), 5000 (MLflow)     │
-│  └─ Egress: Internet acesso (downloads)         │
+│  AWS EC2 (t3.medium, Ubuntu 22.04)              │
+│  └─ Docker: mlflow (5000) + fastapi (8080)      │
+│  └─ user_data: setup automático                 │
 ├─────────────────────────────────────────────────┤
-│      IAM Role + Instance Profile                │
+│  Security Group (Networking)                    │
+│  └─ Ingress: 8080 (API), 5000 (MLflow), 22 SSH  │
+│  └─ Egress: Internet acesso                     │
+├─────────────────────────────────────────────────┤
+│  IAM Role + Instance Profile                    │
 │  └─ S3 access para MLflow artifacts             │
 ├─────────────────────────────────────────────────┤
-│      S3 Bucket (Storage)                        │
-│  └─ Armazena: modelo, artifacts, logs           │
+│  S3 Bucket (fiap-mlflow-artifacts)              │
+│  └─ MLflow artifacts, modelo, logs              │
 ├─────────────────────────────────────────────────┤
-│      RSA Key Pair (Access)                      │
-│  └─ SSH access à instância                      │
+│  RSA Key Pair (SSH access)                      │
+│  └─ ~/.ssh/mlflow-flask-project-key.pem         │
 └─────────────────────────────────────────────────┘
 ```
+
+**URLs Deployadas:**
+
+| Serviço | URL |
+|---------|-----|
+| API FastAPI | https://api.pocsarcotech.com |
+| MLflow UI | https://mlflow.pocsarcotech.com/mlflow/ |
+| API Docs | https://api.pocsarcotech.com/docs |
+| API (direto EC2) | http://100.24.64.84:8080 |
+| MLflow (direto EC2) | http://100.24.64.84:5000 |
 
 ### Deploy (Terraform)
 
 ```bash
 cd iac/
-terraform init           # Inicializa backend S3
+terraform init           # Inicializa backend S3 (tech-terraform-poc)
 terraform plan           # Preview mudanças
 terraform apply          # Provisiona na AWS
 terraform destroy        # Destrói recursos
@@ -1036,8 +1066,9 @@ terraform destroy        # Destrói recursos
 - `modules/compute/` — EC2 com user_data Docker
 - `modules/networking/` — Security Group
 - `modules/iam/` — Role + Profile + S3 policy
-- `modules/storage/` — S3 bucket
+- `modules/storage/` — S3 bucket (fiap-mlflow-artifacts)
 - `modules/keypair/` — RSA key pair gerado
+- `modules/alb/` — ALB + listener HTTPS + host-based rules
 
 ---
 
