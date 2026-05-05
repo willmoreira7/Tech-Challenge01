@@ -71,7 +71,7 @@ services:
       - mlflow_data:/mlflow
     environment:
       - AWS_DEFAULT_REGION=${aws_region}
-      - MLFLOW_ALLOWED_HOSTS=*
+      - MLFLOW_SERVER_ALLOWED_HOSTS=*
     command: >
       mlflow server
         --host 0.0.0.0
