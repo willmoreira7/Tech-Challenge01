@@ -48,7 +48,13 @@ jobs:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
       - name: Adicionar EC2 ao known_hosts
-        run: ssh-keyscan -H ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts
+        run: |
+          for i in $(seq 1 12); do
+            ssh-keyscan -H -T 10 ${{ env.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null && break
+            echo "Tentativa $i/12 — SSH ainda não disponível, aguardando 10s..."
+            [ $i -eq 12 ] && { echo "ERRO: EC2 não respondeu na porta 22"; exit 1; }
+            sleep 10
+          done
 
       - name: Deploy na EC2
         id: deploy
