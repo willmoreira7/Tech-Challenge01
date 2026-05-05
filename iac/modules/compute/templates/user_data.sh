@@ -79,7 +79,6 @@ services:
       - mlflow_data:/mlflow
     environment:
       - AWS_DEFAULT_REGION=${aws_region}
-      - MLFLOW_SERVER_ALLOWED_HOSTS=*
     command: >
       mlflow server
         --host 0.0.0.0
@@ -87,6 +86,8 @@ services:
         --backend-store-uri sqlite:////mlflow/mlflow.db
         --serve-artifacts
         --artifacts-destination $ARTIFACT_URI
+        --allowed-hosts '*'
+        --cors-allowed-origins '*'
     networks:
       - app-net
 
