@@ -76,10 +76,9 @@ services:
         --host 0.0.0.0
         --port 5000
         --backend-store-uri sqlite:////mlflow/mlflow.db
-        --default-artifact-root $ARTIFACT_URI
+        --serve-artifacts
+        --artifacts-destination $ARTIFACT_URI
         --static-prefix /mlflow
-        --allowed-hosts "*"
-        --cors-allowed-origins "*"
     networks:
       - app-net
 

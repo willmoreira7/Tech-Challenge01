@@ -45,11 +45,10 @@ module "iam" {
 }
 
 module "storage" {
-  source             = "./modules/storage"
-  enabled            = var.mlflow_artifact_bucket != ""
-  bucket_name        = var.mlflow_artifact_bucket
-  versioning_enabled = true
-  tags               = local.common_tags
+  source      = "./modules/storage"
+  enabled     = var.mlflow_artifact_bucket != ""
+  bucket_name = var.mlflow_artifact_bucket
+  tags        = local.common_tags
 }
 
 module "alb" {
