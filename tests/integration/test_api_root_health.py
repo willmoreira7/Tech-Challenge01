@@ -41,12 +41,13 @@ class TestHealth:
     """Testes para rota GET /health."""
 
     def test_health_returns_ok(self, client):
-        """GET /health retorna 200 com status ok."""
+        """GET /health retorna 200 com status healthy quando modelo está carregado."""
         response = client.get("/health")
         assert response.status_code == 200
 
         data = response.json()
-        assert data["status"] == "ok"
+        # Status deve ser "healthy" se modelo e pipeline estão carregados
+        assert data["status"] in ["healthy", "degraded"]
 
     def test_health_has_uptime(self, client):
         """GET /health contém uptime positivo."""
@@ -73,3 +74,24 @@ class TestHealth:
         # Verificar se é um timestamp válido (contém T e Z)
         assert "T" in data["timestamp"]
         assert "Z" in data["timestamp"]
+
+    def test_health_status_healthy_with_loaded_model(self, client):
+        """GET /health retorna status 'healthy' quando modelo está carregado."""
+        response = client.get("/health")
+        data = response.json()
+        # Esperamos 'healthy' pois o client fixture já carrega o modelo
+        assert data["status"] == "healthy"
+
+    def test_health_status_degraded_without_model(self, client):
+        """GET /health retorna status 'degraded' quando modelo não está carregado."""
+        from src.api.app import create_app
+
+        # Cria app sem carregar modelo
+        app = create_app()
+        from fastapi.testclient import TestClient
+        test_client = TestClient(app)
+
+        response = test_client.get("/health")
+        data = response.json()
+        # Esperamos 'degraded' pois modelo não foi carregado
+        assert data["status"] == "degraded"

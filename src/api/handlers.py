@@ -53,9 +53,26 @@ async def handle_root() -> RootResponse:
 
 
 async def handle_health(app: FastAPI) -> HealthResponse:
-    uptime = time.time() - app.state.start_time
+    """Handler para GET /health com verificação de modelo."""
+    start_time = getattr(app.state, "start_time", None)
+    uptime = time.time() - start_time if start_time is not None else 0.0
+
+    # Verifica se modelo e pipeline estão carregados
+    model_loaded = hasattr(app.state, "model") and app.state.model is not None
+    pipeline_loaded = hasattr(app.state, "pipeline") and app.state.pipeline is not None
+
+    # Determina o status baseado no carregamento dos componentes
+    if model_loaded and pipeline_loaded:
+        status = "healthy"
+    else:
+        status = "degraded"
+        if not model_loaded:
+            log.warning("health_check.model_not_loaded")
+        if not pipeline_loaded:
+            log.warning("health_check.pipeline_not_loaded")
+
     return HealthResponse(
-        status="ok",
+        status=status,
         model_version="1.0.0",
         uptime_seconds=round(uptime, 2),
         timestamp=datetime.utcnow().isoformat() + "Z",
