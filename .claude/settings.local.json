@@ -44,7 +44,13 @@
       "Bash(curl -s \"https://mlflow.pocsarcotech.com/#\" -o /dev/null -w \"%{http_code}\")",
       "Bash(curl -s \"https://mlflow.pocsarcotech.com/\")",
       "Bash(curl -s -X POST \"https://mlflow.pocsarcotech.com/api/2.0/mlflow/experiments/search\" -H \"Content-Type: application/json\" -d '{\"max_results\": 10}')",
-      "Bash(curl *)"
+      "Bash(curl *)",
+      "WebFetch(domain:mlflow.org)",
+      "Bash(aws ec2 describe-instances *)",
+      "Bash(aws ec2 describe-security-groups *)",
+      "Bash(nc -zv -w 5 100.24.64.84 22)",
+      "Bash(echo \"Exit: $?\")",
+      "Bash(aws ec2 describe-network-acls *)"
     ]
   }
 }

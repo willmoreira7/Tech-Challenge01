@@ -94,7 +94,7 @@ jobs:
             STATUS=$(curl -sf ${{ env.HEALTH_URL }} \
               | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" \
               2>/dev/null || echo "")
-            [ "$STATUS" = "ok" ] && echo "Health check passou ✅" && exit 0
+            [ "$STATUS" = "healthy" ] && echo "Health check passou ✅" && exit 0
             echo "Tentativa $i/18 — aguardando 10s..."
             sleep 10
           done
