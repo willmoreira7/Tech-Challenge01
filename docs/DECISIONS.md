@@ -138,7 +138,7 @@ Experimento MLflow: `churn-baselines` · Dataset hash: `58235c7e5c2ce5014bc3ed88
 - [x] Estado Terraform remoto: S3 bucket `tech-terraform-poc` / key `environment-pos/terraform.tfstate`
 - [x] URL MLflow: `https://mlflow.pocsarcotech.com/mlflow/`
 - [x] URL API: `https://api.pocsarcotech.com`
-- [x] CI/CD: `.github/workflows/ci-cd.yml` — único workflow com jobs `test → train → deploy` em cadeia; `train` e `deploy` só disparam em `main` com path filter por tipo de mudança
+- [x] CI/CD: três workflows separados por responsabilidade — `pr.yml` (lint + testes unitários em PRs), `cd.yml` (treino + build + smoke ao criar pre-release), `deploy.yml` (SSH + docker compose + health check ao promover para release)
 
 ---
 
@@ -152,4 +152,4 @@ Experimento MLflow: `churn-baselines` · Dataset hash: `58235c7e5c2ce5014bc3ed88
 - [x] Etapa 1: LogisticRegression com `class_weight="balanced"` já atinge Recall=0.80 — o MLP precisa bater PR-AUC=0.655 mantendo Recall≥0.75. `TotalCharges` tinha correlação 0.826 com tenure — resolvido na etapa de feature engineering (removida; tenure substituída por log_tenure).
 - [x] Etapa 2: `StratifiedKFold` obrigatório por spec — adicionado no `train.py` como CV no conjunto de treino (80%) + hold-out test separado (20%); fold-wise metrics logadas no MLflow com prefixo `fold{k}_*` e agregadas em `cv_*_mean/std`.
 - [x] Etapa 3: Flask app em `iac/flask-app/` é placeholder — a API real é FastAPI em `src/api/`. Modelo carregado de `models/mlp_best.pt` no startup via lifespan. `--static-prefix /mlflow` no MLflow server desloca todos os endpoints para `/mlflow/*` — health check do ALB deve apontar para `/mlflow/health`, não `/health`.
-- [x] Etapa 4: Três workflows separados (tests, train, deploy) rodavam de forma independente e sem garantia de ordem — consolidados em `ci-cd.yml` com `needs:` e `dorny/paths-filter` para garantir que testes passem antes de treinar ou deployar, e que cada job só rode quando seus arquivos de interesse mudam.
+- [x] Etapa 4: CI/CD reestruturado em três workflows com gatilhos de release — `pr.yml` roda em PRs, `cd.yml` dispara ao criar pre-release (garante treino + smoke antes de ir pra prod), `deploy.yml` dispara ao promover a release (garante que só imagem validada chega à EC2). Processo documentado no README.

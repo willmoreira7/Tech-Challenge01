@@ -616,13 +616,34 @@ pre-commit run --all-files
 
 ### CI/CD Pipeline (GitHub Actions)
 
-```yaml
-# .github/workflows/tests.yml
-- Roda em: Push para main/develop + PRs
-- Matrix: Python 3.10 e 3.11
-- Steps: Lint → Type check → Tests → Coverage publish
-- Fail-fast: PRs não podem entrar sem passar testes
+Três workflows independentes com responsabilidades distintas:
+
+| Workflow | Arquivo | Gatilho | Jobs |
+|---|---|---|---|
+| **PR Check** | `pr.yml` | Pull Request → `main` | lint + testes unitários |
+| **CD** | `cd.yml` | Release criada como **pre-release** | lint → treino → testes integração → build Docker → smoke test |
+| **Deploy** | `deploy.yml` | Pre-release **promovida** para release | pull imagem → SSH EC2 → `docker compose up` → health check → rollback automático |
+
+### Processo de Release
+
+```bash
+# 1. Criar pre-release — dispara cd.yml (treino + build + smoke)
+gh release create v1.0.0 --prerelease --title "v1.0.0" --notes "Descrição"
+
+# 2. Aguardar cd.yml completar (lint, treino, integração, build, smoke)
+#    O workflow atualiza as notas da release com as métricas do modelo.
+
+# 3. Promover para release — dispara deploy.yml (deploy na EC2)
+#    GitHub UI: Edit release → desmarcar "Set as a pre-release" → Update release
+#    Ou via CLI:
+gh release edit v1.0.0 --prerelease=false
 ```
+
+O `deploy.yml` executa automaticamente após a promoção:
+1. Faz pull da imagem `mmacanmunhoz/churn-api:v1.0.0` no Docker Hub
+2. Acessa a EC2 via SSH e atualiza o `docker compose`
+3. Aguarda health check em `https://api.pocsarcotech.com/health`
+4. Em caso de falha, faz rollback automático para a imagem anterior
 
 ---
 
