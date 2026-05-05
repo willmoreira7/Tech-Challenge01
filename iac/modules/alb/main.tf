@@ -76,7 +76,7 @@ resource "aws_lb_target_group" "mlflow" {
   vpc_id   = data.aws_vpc.this.id
 
   health_check {
-    path                = "/mlflow/health"
+    path                = "/health"
     healthy_threshold   = 2
     unhealthy_threshold = 3
     interval            = 30
