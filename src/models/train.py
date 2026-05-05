@@ -250,11 +250,9 @@ def train(config_path: Path | None = None, run_name: str = "mlp_train") -> str:
             "pos_weight": POS_WEIGHT,
         })
 
-        # métricas por fold
         for fold, fm in enumerate(fold_metrics):
             mlflow.log_metrics({f"fold{fold}_{k}": v for k, v in fm.items()}, step=fold)
 
-        # CV agregado + teste final
         mlflow.log_metrics(cv_summary)
         mlflow.log_metrics(test_metrics)
 

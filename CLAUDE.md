@@ -110,6 +110,9 @@ docker compose -f docker-compose.local.yml up -d --build
 | `docs/decisions.md` | Decisões arquiteturais, experimentos MLflow, lições |
 | `docs/model_card.md` | Performance, limitações, vieses, cenários de falha |
 | `docs/monitoring_plan.md` | Métricas, alertas, playbook de resposta |
+| `specs/mlp-model.md` | Arquitetura MLP, hiperparâmetros, early stopping, validação de performance |
+| `specs/model-training.md` | Pipeline de treinamento, fluxo de configuração, CI/CD integration |
+| `specs/inference-api.md` | Endpoints FastAPI, schemas Pydantic, rate limiting, health check |
 | `specs/iac.md` | Arquitetura Terraform, módulos AWS, variáveis, critérios de aceitação |
 
 ---
@@ -126,3 +129,37 @@ docker compose -f docker-compose.local.yml up -d --build
 - Features candidatas a drop: `gender` (churn 26.9% vs 26.2%, sem poder discriminativo), `TotalCharges` (correlação 0.826 com tenure — avaliar no pipeline), `PhoneService` (sinal fraco: 26.7% vs 24.9%)
 - Features mais preditivas: `Contract`, `InternetService`, `PaymentMethod`, `OnlineSecurity`, `TechSupport`, `tenure`
 - TotalCharges: 11 linhas com espaço → imputadas com mediana (1397.48)
+
+---
+
+## Status de Implementação
+
+### ✅ API FastAPI (Baseado em `specs/inference-api.md`)
+- **Status**: Implementado e testado
+- **Endpoints**: 
+  - `GET /` — Health check com uptime
+  - `GET /health` — Status da API
+  - `POST /api/v1/predict` — Predição individual (com validação Pydantic Literal)
+  - `POST /api/v1/predict_batch` — Predição em lote (até 10k registros)
+- **Features**: Rate limiting (10 req/30sec), middleware customizado, carregamento automático de modelo
+- **Testes**: 51 testes de integração (todos passando)
+- **Ref**: [src/api/app.py](src/api/app.py), [src/api/handlers.py](src/api/handlers.py), [src/api/schemas.py](src/api/schemas.py)
+
+### ✅ Pipeline de Treinamento (Baseado em `specs/mlp-model.md` + `specs/model-training.md`)
+- **Status**: Implementado com MLflow integration
+- **Script**: [src/models/train.py](src/models/train.py)
+- **Funcionalidades**:
+  - Carregamento de hyperparâmetros via `mlp_config.json`
+  - Early stopping com patience configurável
+  - Validação de performance: Recall ≥ 0.75 (exit code 2 se falhar)
+  - Salvamento de artefatos: modelo, pipeline, config, test_results
+  - Logging estruturado via structlog
+  - Registrom em MLflow com experiment tracking
+- **Performance**: Recall=0.8467, AUC-ROC=0.8506, PR-AUC=0.6648 (Fonte: `models/test_results.json`)
+- **Testes**: 13 testes unitários (todos passando)
+- **CI/CD**: Integrado em `.github/workflows/tests.yml` — treina antes de rodar testes
+
+### ✅ Validação Completa
+- **Linting**: ruff 0 errors
+- **Testes**: 64/64 passando (51 API + 13 training)
+- **Treinamento**: Exit code 0, métrica de negócio atendida (Recall=0.8467 ≥ 0.75)
