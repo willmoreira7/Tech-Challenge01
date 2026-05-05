@@ -155,11 +155,11 @@ docker compose -f docker-compose.local.yml up -d --build
   - Salvamento de artefatos: modelo, pipeline, config, test_results
   - Logging estruturado via structlog
   - Registrom em MLflow com experiment tracking
-- **Performance**: Recall=0.7968, AUC-ROC=0.8412, PR-AUC=0.6537
+- **Performance**: Recall=0.8467, AUC-ROC=0.8506, PR-AUC=0.6648 (Fonte: `models/test_results.json`)
 - **Testes**: 13 testes unitários (todos passando)
 - **CI/CD**: Integrado em `.github/workflows/tests.yml` — treina antes de rodar testes
 
 ### ✅ Validação Completa
 - **Linting**: ruff 0 errors
 - **Testes**: 64/64 passando (51 API + 13 training)
-- **Treinamento**: Exit code 0, métrica de negócio atendida
+- **Treinamento**: Exit code 0, métrica de negócio atendida (Recall=0.8467 ≥ 0.75)
