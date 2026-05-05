@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 import mlflow
+import mlflow.pytorch
 import numpy as np
 import pandas as pd
 import structlog
@@ -287,7 +288,7 @@ def train(config_path: Path | None = None, run_name: str = "mlp_train") -> str:
         mlflow.set_tag("dataset_hash", dataset_hash)
         mlflow.set_tag("recall_target_met", str(recall_ok))
 
-        mlflow.log_artifact(str(model_path))
+        mlflow.pytorch.log_model(final_model, artifact_path="model")
         mlflow.log_artifact(str(pipeline_path))
         mlflow.set_tag("release_tag", run_name)
 
@@ -295,8 +296,8 @@ def train(config_path: Path | None = None, run_name: str = "mlp_train") -> str:
 
     # Registra no Model Registry apenas se recall atingiu o target
     model_name = os.getenv("MLFLOW_MODEL_NAME", "churn-mlp")
-    if recall_ok and mlflow.get_tracking_uri() != "./mlruns":
-        mv = mlflow.register_model(f"runs:/{run_id}/mlp_best.pt", model_name)
+    if recall_ok and mlflow.get_tracking_uri() not in ("./mlruns", "mlruns"):
+        mv = mlflow.register_model(f"runs:/{run_id}/model", model_name)
         log.info("mlflow.model_registered", name=model_name, version=mv.version)
 
     log.info("mlflow.run_logged", run_id=run_id, experiment=experiment,
