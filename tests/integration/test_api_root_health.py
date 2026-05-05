@@ -57,12 +57,14 @@ class TestHealth:
         assert data["uptime_seconds"] >= 0
 
     def test_health_has_model_version(self, client):
-        """GET /health contém model_version."""
+        """GET /health contém model_version e model_source."""
         response = client.get("/health")
         data = response.json()
 
         assert "model_version" in data
         assert data["model_version"] == "1.0.0"
+        assert "model_source" in data
+        assert data["model_source"] in ("mlflow_registry", "local_file", "unknown")
 
     def test_health_has_timestamp(self, client):
         """GET /health contém timestamp ISO 8601."""

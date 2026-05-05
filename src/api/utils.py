@@ -111,17 +111,21 @@ def _load_from_file(model_path: str, config_path: str) -> ChurnMLP:
     return model
 
 
-def load_model(model_path: str | None = None, config_path: str | None = None) -> ChurnMLP:
-    """Carrega modelo do MLflow Registry (remoto) ou de arquivo local como fallback."""
+def load_model(model_path: str | None = None, config_path: str | None = None) -> tuple[ChurnMLP, str]:
+    """Carrega modelo do MLflow Registry (remoto) ou de arquivo local como fallback.
+
+    Returns:
+        (model, source) onde source é 'mlflow_registry' ou 'local_file'.
+    """
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "")
     model_name = os.getenv("MLFLOW_MODEL_NAME", "churn-mlp")
     is_remote = tracking_uri.startswith("http://") or tracking_uri.startswith("https://")
 
     if is_remote:
         try:
-            return _load_from_mlflow(model_name)
+            return _load_from_mlflow(model_name), "mlflow_registry"
         except Exception as exc:
-            log.warning("model.registry_fallback", error=str(exc), fallback="arquivo local")
+            log.warning("model.registry_fallback", error=str(exc), fallback="local_file")
 
     project_root = Path(__file__).parent.parent.parent
     if model_path is None:
@@ -130,7 +134,7 @@ def load_model(model_path: str | None = None, config_path: str | None = None) ->
         config_path = str(project_root / "models" / "mlp_config.json")
 
     try:
-        return _load_from_file(model_path, config_path)
+        return _load_from_file(model_path, config_path), "local_file"
     except Exception as exc:
         log.error("model.load_failed", path=model_path, error=str(exc))
         raise
@@ -142,10 +146,10 @@ def get_lifespan():
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         try:
-            app.state.model = load_model()
+            app.state.model, app.state.model_source = load_model()
             app.state.pipeline = load_pipeline()
             app.state.start_time = time.time()
-            log.info("app.startup", model="mlp_best.pt", pipeline="pipeline.pkl")
+            log.info("app.startup", model_source=app.state.model_source, pipeline="pipeline.pkl")
         except Exception as exc:
             log.error("app.startup_failed", error=str(exc))
             raise

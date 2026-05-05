@@ -19,16 +19,15 @@ def client():
 
     # Carregar modelo e pipeline para testes
     try:
-        test_app.state.model = load_model()
+        test_app.state.model, test_app.state.model_source = load_model()
         test_app.state.pipeline = load_pipeline()
         test_app.state.start_time = time.time()
     except Exception as exc:
         # Se não conseguir carregar, criar mocks simples para testes
         print(f"Erro ao carregar modelo: {exc}")
-        # Mock do modelo
         test_app.state.model = torch.nn.Linear(30, 1)
         test_app.state.model.eval()
-        # Mock do pipeline
+        test_app.state.model_source = "local_file"
         test_app.state.pipeline = joblib.load("models/pipeline.pkl") if __name__ != "__main__" else None
         test_app.state.start_time = time.time()
 
@@ -43,16 +42,15 @@ def client_with_rate_limit():
 
     # Carregar modelo e pipeline para testes
     try:
-        test_app.state.model = load_model()
+        test_app.state.model, test_app.state.model_source = load_model()
         test_app.state.pipeline = load_pipeline()
         test_app.state.start_time = time.time()
     except Exception as exc:
         # Se não conseguir carregar, criar mocks simples para testes
         print(f"Erro ao carregar modelo: {exc}")
-        # Mock do modelo
         test_app.state.model = torch.nn.Linear(30, 1)
         test_app.state.model.eval()
-        # Mock do pipeline
+        test_app.state.model_source = "local_file"
         test_app.state.pipeline = joblib.load("models/pipeline.pkl") if __name__ != "__main__" else None
         test_app.state.start_time = time.time()
 
