@@ -288,7 +288,13 @@ def train(config_path: Path | None = None, run_name: str = "mlp_train") -> str:
         mlflow.set_tag("dataset_hash", dataset_hash)
         mlflow.set_tag("recall_target_met", str(recall_ok))
 
-        mlflow.pytorch.log_model(final_model, artifact_path="model")
+        input_sample = X_test_np[:5].astype("float32")
+        with torch.no_grad():
+            output_sample = torch.sigmoid(
+                final_model(torch.tensor(input_sample))
+            ).numpy()
+        signature = mlflow.models.infer_signature(input_sample, output_sample)
+        mlflow.pytorch.log_model(final_model, name="model", signature=signature)
         mlflow.log_artifact(str(pipeline_path))
         mlflow.set_tag("release_tag", run_name)
 

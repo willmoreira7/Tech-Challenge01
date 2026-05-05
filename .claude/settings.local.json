@@ -26,7 +26,25 @@
       "Bash(asdf set *)",
       "Bash(pip install *)",
       "Bash(ruff check *)",
-      "Bash(gh pr *)"
+      "Bash(gh pr *)",
+      "Bash(terraform init *)",
+      "Bash(terraform validate *)",
+      "Bash(terraform plan *)",
+      "Bash(terraform apply *)",
+      "Bash(curl -sf https://mlflow.pocsarcotech.com/health)",
+      "Bash(curl -sf \"https://mlflow.pocsarcotech.com/api/2.0/mlflow/experiments/list\")",
+      "Bash(curl -sv \"https://mlflow.pocsarcotech.com/api/2.0/mlflow/experiments/list\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://mlflow.pocsarcotech.com/api/2.0/mlflow/experiments/list\")",
+      "Bash(curl -s \"https://mlflow.pocsarcotech.com/api/2.0/mlflow/experiments/list\")",
+      "Bash(ssh *)",
+      "Bash(curl -sv \"https://mlflow.pocsarcotech.com/health\")",
+      "Bash(curl -s \"https://mlflow.pocsarcotech.com/\" -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://mlflow.pocsarcotech.com/health\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://mlflow.pocsarcotech.com/\")",
+      "Bash(curl -s \"https://mlflow.pocsarcotech.com/#\" -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s \"https://mlflow.pocsarcotech.com/\")",
+      "Bash(curl -s -X POST \"https://mlflow.pocsarcotech.com/api/2.0/mlflow/experiments/search\" -H \"Content-Type: application/json\" -d '{\"max_results\": 10}')",
+      "Bash(curl *)"
     ]
   }
 }
