@@ -48,7 +48,7 @@ variable "flask_port" {
 variable "mlflow_artifact_bucket" {
   description = "S3 bucket name for MLflow artifacts; leave empty to use local instance storage"
   type        = string
-  default     = ""
+  default     = "fiap-mlflow-artifacts"
 }
 
 variable "volume_size" {

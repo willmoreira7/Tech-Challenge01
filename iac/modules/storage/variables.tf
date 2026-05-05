@@ -1,5 +1,5 @@
 variable "enabled" {
-  description = "Set to true to create the S3 bucket"
+  description = "Set to true to reference the existing S3 bucket"
   type        = bool
   default     = false
 }
@@ -8,12 +8,6 @@ variable "bucket_name" {
   description = "S3 bucket name; required when enabled = true"
   type        = string
   default     = ""
-}
-
-variable "versioning_enabled" {
-  description = "Enable S3 bucket versioning"
-  type        = bool
-  default     = true
 }
 
 variable "tags" {
