@@ -19,7 +19,7 @@ def client():
 
     # Carregar modelo e pipeline para testes
     try:
-        test_app.state.model, test_app.state.model_source = load_model()
+        test_app.state.model, test_app.state.model_source, test_app.state.model_version = load_model()
         test_app.state.pipeline = load_pipeline()
         test_app.state.start_time = time.time()
     except Exception as exc:
@@ -28,6 +28,7 @@ def client():
         test_app.state.model = torch.nn.Linear(30, 1)
         test_app.state.model.eval()
         test_app.state.model_source = "local_file"
+        test_app.state.model_version = "local"
         test_app.state.pipeline = joblib.load("models/pipeline.pkl") if __name__ != "__main__" else None
         test_app.state.start_time = time.time()
 
@@ -42,7 +43,7 @@ def client_with_rate_limit():
 
     # Carregar modelo e pipeline para testes
     try:
-        test_app.state.model, test_app.state.model_source = load_model()
+        test_app.state.model, test_app.state.model_source, test_app.state.model_version = load_model()
         test_app.state.pipeline = load_pipeline()
         test_app.state.start_time = time.time()
     except Exception as exc:
@@ -51,6 +52,7 @@ def client_with_rate_limit():
         test_app.state.model = torch.nn.Linear(30, 1)
         test_app.state.model.eval()
         test_app.state.model_source = "local_file"
+        test_app.state.model_version = "local"
         test_app.state.pipeline = joblib.load("models/pipeline.pkl") if __name__ != "__main__" else None
         test_app.state.start_time = time.time()
 

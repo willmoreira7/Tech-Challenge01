@@ -62,7 +62,8 @@ class TestHealth:
         data = response.json()
 
         assert "model_version" in data
-        assert data["model_version"] == "1.0.0"
+        assert isinstance(data["model_version"], str)
+        assert len(data["model_version"]) > 0
         assert "model_source" in data
         assert data["model_source"] in ("mlflow_registry", "local_file", "unknown")
 

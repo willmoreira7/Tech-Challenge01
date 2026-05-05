@@ -86,13 +86,20 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             raise
 
 
-def _load_from_mlflow(model_name: str) -> ChurnMLP:
-    """Carrega versão Production do modelo direto do MLflow Model Registry."""
+def _load_from_mlflow(model_name: str) -> tuple[ChurnMLP, str]:
+    """Carrega versão Production do modelo direto do MLflow Model Registry.
+
+    Returns:
+        (model, version) onde version é o número de versão no Registry.
+    """
+    client = mlflow.MlflowClient()
+    versions = client.get_latest_versions(model_name, stages=["Production"])
+    model_version = versions[0].version if versions else "unknown"
     model_uri = f"models:/{model_name}/Production"
     model = mlflow.pytorch.load_model(model_uri)
     model.eval()
-    log.info("model.loaded_from_registry", uri=model_uri)
-    return model
+    log.info("model.loaded_from_registry", uri=model_uri, version=model_version)
+    return model, model_version
 
 
 def _load_from_file(model_path: str, config_path: str) -> ChurnMLP:
@@ -111,11 +118,11 @@ def _load_from_file(model_path: str, config_path: str) -> ChurnMLP:
     return model
 
 
-def load_model(model_path: str | None = None, config_path: str | None = None) -> tuple[ChurnMLP, str]:
+def load_model(model_path: str | None = None, config_path: str | None = None) -> tuple[ChurnMLP, str, str]:
     """Carrega modelo do MLflow Registry (remoto) ou de arquivo local como fallback.
 
     Returns:
-        (model, source) onde source é 'mlflow_registry' ou 'local_file'.
+        (model, source, version) onde source é 'mlflow_registry' ou 'local_file'.
     """
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "")
     model_name = os.getenv("MLFLOW_MODEL_NAME", "churn-mlp")
@@ -123,7 +130,8 @@ def load_model(model_path: str | None = None, config_path: str | None = None) ->
 
     if is_remote:
         try:
-            return _load_from_mlflow(model_name), "mlflow_registry"
+            model, version = _load_from_mlflow(model_name)
+            return model, "mlflow_registry", version
         except Exception as exc:
             log.warning("model.registry_fallback", error=str(exc), fallback="local_file")
 
@@ -134,7 +142,7 @@ def load_model(model_path: str | None = None, config_path: str | None = None) ->
         config_path = str(project_root / "models" / "mlp_config.json")
 
     try:
-        return _load_from_file(model_path, config_path), "local_file"
+        return _load_from_file(model_path, config_path), "local_file", "local"
     except Exception as exc:
         log.error("model.load_failed", path=model_path, error=str(exc))
         raise
@@ -146,10 +154,10 @@ def get_lifespan():
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         try:
-            app.state.model, app.state.model_source = load_model()
+            app.state.model, app.state.model_source, app.state.model_version = load_model()
             app.state.pipeline = load_pipeline()
             app.state.start_time = time.time()
-            log.info("app.startup", model_source=app.state.model_source, pipeline="pipeline.pkl")
+            log.info("app.startup", model_source=app.state.model_source, model_version=app.state.model_version, pipeline="pipeline.pkl")
         except Exception as exc:
             log.error("app.startup_failed", error=str(exc))
             raise
