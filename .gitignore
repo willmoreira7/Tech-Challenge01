@@ -202,6 +202,9 @@ models/*.ckpt         # Checkpoint files
 models/*.safetensors  # Hugging Face format
 !models/.gitkeep      # Mantém diretório no git
 
+# requirements.txt é gerado por uv — pyproject.toml + uv.lock são a fonte de verdade
+requirements.txt
+
 # MLflow artifacts e tracking
 mlruns/
 **/mlruns/
