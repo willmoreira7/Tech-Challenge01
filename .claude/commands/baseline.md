@@ -1,28 +1,40 @@
 ---
 name: baseline
-description: Treina baselines (DummyClassifier + LogisticRegression), registra no MLflow e gera notebook comparativo
+description: Treina baselines (DummyClassifier + LogisticRegression), registra no MLflow e gera notebook comparativo. Usar quando quiser estabelecer ou re-verificar o piso de performance que o MLP deve superar.
 ---
 
-Implemente e execute seguindo **exatamente** `specs/data-loader.md` e `specs/feature-pipeline.md`.
+Consulte `specs/baseline-comparison.md` para a spec completa.
 
-Gere o notebook `notebooks/baselines.ipynb` **standalone** (sem imports de `src/`) seguindo o padrão da aula:
+## Estado atual
 
-O notebook deve ser autocontido — todo o código inline, sem dependências de `src/`:
+Baselines concluídos. Resultados em `notebooks/baselines.ipynb` e `docs/DECISIONS.md`.
 
-1. Setup: imports diretos (pandas, numpy, sklearn, matplotlib, mlflow), `RANDOM_SEED = 42`
-2. Carregamento: `pd.read_csv('../data/raw/dataset.csv')` com fix de `TotalCharges` e encode de `Churn` inline
+| Modelo | Recall | F1 | AUC-ROC | PR-AUC |
+|--------|--------|----|---------|--------|
+| DummyClassifier (most_frequent) | 0.000 | 0.000 | 0.500 | 0.265 |
+| DummyClassifier (stratified) | 0.275 | 0.274 | 0.505 | 0.268 |
+| LogisticRegression (balanced) | **0.802** | 0.626 | 0.845 | **0.655** |
+
+**Meta para o MLP:** superar PR-AUC=0.655 e manter Recall≥0.75.
+
+## Para re-executar
+
+O notebook é **autocontido** (sem imports de `src/`):
+
+```bash
+uv run jupyter nbconvert --to notebook --execute --inplace notebooks/baselines.ipynb
+```
+
+## Estrutura do notebook (se recriar do zero)
+
+1. Setup: `RANDOM_SEED = 42`, imports diretos (pandas, numpy, sklearn, mlflow)
+2. Dados: `pd.read_csv('../data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv')` com fix inline de `TotalCharges` e encode de `Churn`
 3. Pipeline sklearn inline: `ColumnTransformer` com `StandardScaler`, `OrdinalEncoder`, `OneHotEncoder`
-4. Treine com StratifiedKFold (k=5, random_state=42):
-   - `DummyClassifier(strategy="most_frequent")`
-   - `DummyClassifier(strategy="stratified")`
-   - `LogisticRegression(max_iter=1000, class_weight="balanced")`
-5. Avalie com 5 métricas: Recall, Precision, F1, AUC-ROC, PR-AUC
-6. Registre cada run no MLflow (experiment="churn-baselines"):
-   - params: model, random_seed, cv_folds, dataset_hash, pos_weight
-   - metrics: recall_mean, precision_mean, f1_mean, roc_auc_mean, pr_auc_mean
-7. Tabela comparativa de métricas (highlight melhor por coluna)
-8. Curvas ROC e PR sobrepostas por modelo
-9. Análise do threshold ótimo para LogisticRegression (Expected Profit = TP×1140 - FP×60 - FN×1200)
-10. Conclusão: qual baseline o MLP precisa superar e em qual métrica
+4. `StratifiedKFold(k=5, random_state=42)` para cada modelo
+5. MLflow experiment `churn-baselines`: params (model, random_seed, cv_folds, dataset_hash, pos_weight) + metrics (recall_mean, f1_mean, roc_auc_mean, pr_auc_mean)
+6. Tabela comparativa com highlight por coluna
+7. Curvas ROC + PR sobrepostas
+8. Threshold ótimo para LogReg via Expected Profit (`TP×1140 - FP×60 - FN×1200`)
+9. Conclusão: qual baseline o MLP deve superar e em qual métrica
 
-Seeds obrigatórios: `RANDOM_SEED = 42` em todo código.
+Seeds: `RANDOM_SEED = 42` em todo código.

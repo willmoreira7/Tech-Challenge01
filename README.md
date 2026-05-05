@@ -145,9 +145,9 @@ Use Case: Contato CRM em tempo real, portal de cliente
 1. **Real-time API**: Critical path → Contato CRM em < 200ms
 2. **Batch**: Scalability → 70M base em paralelo noturno
 3. **Hybrid**: Otimiza custo vs SLA (GPU + autoscaling)
-4. **Monitoring**: operação (Prometheus + Grafana, planejado), modelo/avaliação batch (MLflow + [`docs/monitoring_plan.md`](docs/monitoring_plan.md)); drift em contínuas (KS) e categóricas nominais (Chi-quadrado).
+4. **Monitoring**: operação (Prometheus + Grafana, planejado), modelo/avaliação batch (MLflow + [`docs/MONITORING_PLAN.md`](docs/MONITORING_PLAN.md)); drift em contínuas (KS) e categóricas nominais (Chi-quadrado).
 
-Detalhes de deploy em evolução: [`docs/decisions.md`](docs/decisions.md) (Etapa 4).
+Detalhes de deploy em evolução: [`docs/DECISIONS.md`](docs/DECISIONS.md) (Etapa 4).
 
 ---
 
@@ -810,7 +810,7 @@ best_recall = runs.sort_values("metrics.recall", ascending=False).iloc[0]
 
 ## 📊 Monitoramento em produção
 
-Documento canônico: **[docs/monitoring_plan.md](docs/monitoring_plan.md)**.
+Documento canônico: **[docs/MONITORING_PLAN.md](docs/MONITORING_PLAN.md)**.
 
 | Camada | Ferramenta (planejado) | O que cobre |
 |--------|-------------------------|-------------|
@@ -889,9 +889,9 @@ pytest tests/ -v  # Todos testes devem passar
 - **[ML_CANVAS.md](docs/ML_CANVAS.md)** ⭐ **COMECE AQUI**: Contexto completo de negócio, KPIs, SLOs, roadmap CRISP-DM
 - **[MODEL_CARD.md](docs/MODEL_CARD.md)**: Especificações técnicas do modelo, limitações, vieses identificados
 - **[VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md)**: Relatório de validação com métricas de performance
-- **[monitoring_plan.md](docs/monitoring_plan.md)**: Plano de monitoramento — drift (KS vs Chi-quadrado), alertas, playbook; stack planejada **Prometheus + Grafana** (API/infra) + **MLflow** (runs de avaliação, Model Registry)
-- **[decisions.md](docs/decisions.md)**: Decisões arquiteturais, experimentos realizados, lições aprendidas
-- **[conventions.md](docs/conventions.md)**: Convenções de código, seeds, logging, commits (conforme CLAUDE.md)
+- **[monitoring_plan.md](docs/MONITORING_PLAN.md)**: Plano de monitoramento — drift (KS vs Chi-quadrado), alertas, playbook; stack planejada **Prometheus + Grafana** (API/infra) + **MLflow** (runs de avaliação, Model Registry)
+- **[decisions.md](docs/DECISIONS.md)**: Decisões arquiteturais, experimentos realizados, lições aprendidas
+- **[conventions.md](docs/CONVENTIONS.md)**: Convenções de código, seeds, logging, commits (conforme CLAUDE.md)
 - **[IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md)**: Guia passo-a-passo de implementação
 
 ### Especificações de Features

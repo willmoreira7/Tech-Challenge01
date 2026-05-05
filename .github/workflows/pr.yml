@@ -1,0 +1,39 @@
+name: PR Check
+
+on:
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+
+# Cancela runs anteriores do mesmo PR ao receber novo commit
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint & Testes Unitários
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Configurar Python ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Instalar dependências
+        run: uv sync --group dev
+
+      - name: Lint (ruff)
+        run: uv run ruff check src/ tests/ --output-format=github
+
+      - name: Testes unitários
+        # Exclui TestTrainingScript — verifica artefatos que só existem após treino
+        run: uv run pytest tests/unit/ -v -k "not TestTrainingScript"

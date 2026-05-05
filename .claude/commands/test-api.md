@@ -1,29 +1,37 @@
 ---
 name: test-api
-description: Executa smoke tests e validações da API FastAPI
+description: Executa smoke tests e validações da API FastAPI. Usar quando quiser verificar se a API está funcionando, após mudanças em src/api/ ou após novo deploy.
 ---
 
-Implemente e execute seguindo **exatamente** `specs/api-predict.md`.
+Consulte `specs/inference-api.md` para o contrato completo.
 
-Se `src/api/` ainda não existir, crie conforme `specs/api-predict.md`:
-- `GET /health` → `{"status": "ok", "model_version": "1.0.0", "uptime_seconds": float}`
-- `POST /predict` → `{"churn_probability": float, "churn_predicted": bool, "model_version": "1.0.0"}`
-- Schema Pydantic `PredictRequest` com validações dos campos (conforme spec)
-- Middleware de latência via structlog
-- Modelo e pipeline carregados no `lifespan` (não por request)
+## Estado atual
 
-Execute a bateria de testes (conforme `specs/api-predict.md`):
+API implementada em `src/api/`. 51 testes de integração em `tests/integration/`.
 
-1. `test_health_returns_ok` — `GET /health` → 200
-2. `test_predict_valid_payload` — `POST /predict` com payload completo → 200, `churn_probability` entre 0 e 1
-3. `test_predict_invalid_payload` — payload sem `tenure` → 422
-4. `test_predict_latency` — resposta em < 200ms
+## Rodar a suíte completa
 
-Payload de referência para testes:
+```bash
+make test
+# ou só integração:
+uv run pytest tests/integration/ -v
+```
+
+## Endpoints implementados
+
+| Método | Path | Response |
+|--------|------|----------|
+| GET | `/` | `RootResponse` — info da API |
+| GET | `/health` | `HealthResponse` — status + uptime |
+| POST | `/api/v1/predict` | `PredictResponse` — predição individual |
+| POST | `/api/v1/predict_batch` | `PredictBatchResponse` — batch (máx 10k) |
+
+## Payload de referência
+
 ```json
 {
   "gender": "Male", "SeniorCitizen": 0, "Partner": "Yes", "Dependents": "No",
-  "tenure": 12, "PhoneService": "Yes", "MultipleLines": "No",
+  "tenure": 12, "PhoneService": "Yes", "MultipleLines": "No phone service",
   "InternetService": "Fiber optic", "OnlineSecurity": "No",
   "OnlineBackup": "No", "DeviceProtection": "No", "TechSupport": "No",
   "StreamingTV": "No", "StreamingMovies": "No", "Contract": "Month-to-month",
@@ -32,5 +40,29 @@ Payload de referência para testes:
 }
 ```
 
-SLOs (conforme spec): p50 < 100ms · p99 < 500ms · uptime > 99.5%
-Logging via structlog — sem print().
+## Checklist de smoke test manual
+
+```bash
+# 1. Sobe a API localmente
+make run
+
+# 2. Health check
+curl http://localhost:8000/health
+
+# 3. Predição individual
+curl -X POST http://localhost:8000/api/v1/predict \
+  -H "Content-Type: application/json" \
+  -d '{"gender":"Male","SeniorCitizen":0,"Partner":"Yes","Dependents":"No","tenure":12,"PhoneService":"Yes","MultipleLines":"No phone service","InternetService":"Fiber optic","OnlineSecurity":"No","OnlineBackup":"No","DeviceProtection":"No","TechSupport":"No","StreamingTV":"No","StreamingMovies":"No","Contract":"Month-to-month","PaperlessBilling":"Yes","PaymentMethod":"Electronic check","MonthlyCharges":70.35,"TotalCharges":844.20}'
+
+# 4. Payload inválido → deve retornar 422
+curl -X POST http://localhost:8000/api/v1/predict \
+  -H "Content-Type: application/json" \
+  -d '{"gender": "Male"}'
+```
+
+## SLOs
+
+- `p50 < 100ms` · `p99 < 500ms` · uptime `> 99.5%`
+- Rate limit: 10 req/30sec por IP → 429
+
+Se falhar na inicialização, verifique se `models/mlp_best.pt` e `models/pipeline.pkl` existem (rode `make train` antes).

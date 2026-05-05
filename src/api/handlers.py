@@ -21,13 +21,24 @@ from src.api.schemas import (
 
 log = structlog.get_logger()
 
-RANDOM_SEED = 42
-np.random.seed(RANDOM_SEED)
-torch.manual_seed(RANDOM_SEED)
+
+def _check_model_ready(app: FastAPI) -> None:
+    """Lança 503 se modelo ou pipeline não estiverem carregados."""
+    model_ok = hasattr(app.state, "model") and app.state.model is not None
+    pipeline_ok = hasattr(app.state, "pipeline") and app.state.pipeline is not None
+    if not model_ok or not pipeline_ok:
+        raise HTTPException(status_code=503, detail="Model or pipeline not loaded")
+
+
+def _run_inference(app: FastAPI, df: pd.DataFrame) -> np.ndarray:
+    """Aplica pipeline e retorna probabilidades como array flat."""
+    X = app.state.pipeline.transform(df)
+    with torch.no_grad():
+        logits = app.state.model(torch.FloatTensor(X))
+        return torch.sigmoid(logits).numpy().flatten()
 
 
 async def handle_root() -> RootResponse:
-    """Handler para GET /."""
     return RootResponse(
         app="Churn Prediction API",
         version="1.0.0",
@@ -42,7 +53,6 @@ async def handle_root() -> RootResponse:
 
 
 async def handle_health(app: FastAPI) -> HealthResponse:
-    """Handler para GET /health."""
     uptime = time.time() - app.state.start_time
     return HealthResponse(
         status="ok",
@@ -55,54 +65,20 @@ async def handle_health(app: FastAPI) -> HealthResponse:
 async def handle_predict(app: FastAPI, request: PredictRequest) -> PredictResponse:
     """Handler para POST /api/v1/predict."""
     start_time = time.time()
-
     try:
-        # Verificar se modelo está carregado
-        if not hasattr(app.state, "model") or app.state.model is None:
-            log.error("predict.model_not_loaded")
-            raise HTTPException(
-                status_code=503,
-                detail="Model or pipeline not loaded",
-            )
-
-        if not hasattr(app.state, "pipeline") or app.state.pipeline is None:
-            log.error("predict.pipeline_not_loaded")
-            raise HTTPException(
-                status_code=503,
-                detail="Model or pipeline not loaded",
-            )
-
-        # Converter request para DataFrame
+        _check_model_ready(app)
         df = pd.DataFrame([request.model_dump()])
-
-        # Aplicar pipeline (preprocessamento)
-        X = app.state.pipeline.transform(df)
-
-        # Inferência
-        with torch.no_grad():
-            X_tensor = torch.FloatTensor(X)
-            logits = app.state.model(X_tensor)
-            probabilities = torch.sigmoid(logits).numpy()
-
-        churn_prob = float(probabilities[0][0])
+        probs = _run_inference(app, df)
+        churn_prob = float(probs[0])
         churn_pred = bool(churn_prob >= 0.5)
-
         latency_ms = (time.time() - start_time) * 1000
-
-        log.info(
-            "predict.success",
-            churn_probability=churn_prob,
-            churn_predicted=churn_pred,
-            latency_ms=round(latency_ms, 2),
-        )
-
+        log.info("predict.success", churn_probability=churn_prob, churn_predicted=churn_pred, latency_ms=round(latency_ms, 2))
         return PredictResponse(
             churn_probability=round(churn_prob, 3),
             churn_predicted=churn_pred,
             model_version="1.0.0",
             processing_time_ms=round(latency_ms, 2),
         )
-
     except HTTPException:
         raise
     except Exception as exc:
@@ -110,76 +86,25 @@ async def handle_predict(app: FastAPI, request: PredictRequest) -> PredictRespon
         raise HTTPException(status_code=500, detail="Internal server error during prediction") from exc
 
 
-async def handle_predict_batch(
-    app: FastAPI, request: PredictBatchRequest
-) -> PredictBatchResponse:
+async def handle_predict_batch(app: FastAPI, request: PredictBatchRequest) -> PredictBatchResponse:
     """Handler para POST /api/v1/predict_batch."""
     start_time = time.time()
-
     try:
-        # Verificar se modelo está carregado
-        if not hasattr(app.state, "model") or app.state.model is None:
-            log.error("predict_batch.model_not_loaded")
-            raise HTTPException(
-                status_code=503,
-                detail="Model or pipeline not loaded",
-            )
-
-        if not hasattr(app.state, "pipeline") or app.state.pipeline is None:
-            log.error("predict_batch.pipeline_not_loaded")
-            raise HTTPException(
-                status_code=503,
-                detail="Model or pipeline not loaded",
-            )
-
-        # Validar tamanho do batch
+        _check_model_ready(app)
         num_records = len(request.records)
-        if num_records == 0:
-            raise HTTPException(
-                status_code=400,
-                detail="Batch cannot be empty",
-            )
-        if num_records > 10000:
-            raise HTTPException(
-                status_code=400,
-                detail="Batch size exceeds maximum of 10000 records",
-            )
-
-        # Converter requests para DataFrame
-        records_data = [record.model_dump() for record in request.records]
-        df = pd.DataFrame(records_data)
-
-        # Aplicar pipeline
-        X = app.state.pipeline.transform(df)
-
-        # Inferência
-        with torch.no_grad():
-            X_tensor = torch.FloatTensor(X)
-            logits = app.state.model(X_tensor)
-            probabilities = torch.sigmoid(logits).numpy().flatten()
-
-        # Gerar batch_id com timestamp
+        df = pd.DataFrame([r.model_dump() for r in request.records])
+        probs = _run_inference(app, df)
         batch_id = datetime.utcnow().strftime("batch_%Y%m%d_%H%M%S")
-
-        # Estruturar predictions
         predictions = [
             PredictionRecord(
                 record_index=i,
-                churn_probability=round(float(probabilities[i]), 3),
-                churn_predicted=bool(probabilities[i] >= 0.5),
+                churn_probability=round(float(probs[i]), 3),
+                churn_predicted=bool(probs[i] >= 0.5),
             )
             for i in range(num_records)
         ]
-
         latency_ms = (time.time() - start_time) * 1000
-
-        log.info(
-            "predict_batch.success",
-            batch_id=batch_id,
-            total_records=num_records,
-            latency_ms=round(latency_ms, 2),
-        )
-
+        log.info("predict_batch.success", batch_id=batch_id, total_records=num_records, latency_ms=round(latency_ms, 2))
         return PredictBatchResponse(
             batch_id=batch_id,
             predictions=predictions,
@@ -187,7 +112,6 @@ async def handle_predict_batch(
             total_records=num_records,
             processing_time_ms=round(latency_ms, 2),
         )
-
     except HTTPException:
         raise
     except Exception as exc:

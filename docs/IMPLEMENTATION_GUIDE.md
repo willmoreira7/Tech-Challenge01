@@ -302,5 +302,5 @@ dev = [
 ## 📚 Referências
 
 - Spec completa: [specs/inference-api.md](../specs/inference-api.md)
-- Convenções: [docs/conventions.md](conventions.md)
-- Modelo card: [docs/model_card.md](model_card.md)
+- Convenções: [docs/CONVENTIONS.md](CONVENTIONS.md)
+- Modelo card: [docs/MODEL_CARD.md](MODEL_CARD.md)

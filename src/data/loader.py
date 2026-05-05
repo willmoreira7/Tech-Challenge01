@@ -6,15 +6,14 @@ import structlog
 
 log = structlog.get_logger()
 
-RANDOM_SEED = 42
-PROJECT_ROOT = Path.cwd()
-RAW_PATH = PROJECT_ROOT / "data" / "raw" / "WA_Fn-UseC_-Telco-Customer-Churn.csv"
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+RAW_PATH = _PROJECT_ROOT / "data" / "raw" / "WA_Fn-UseC_-Telco-Customer-Churn.csv"
 
 
-def load_raw(path: str = RAW_PATH) -> tuple[pd.DataFrame, str]:
+def load_raw(path: Path | str = RAW_PATH) -> tuple[pd.DataFrame, str]:
     """Carrega, limpa e retorna o dataset + hash MD5 do conteúdo."""
     df = pd.read_csv(path)
-    log.info("data.loaded", path=path, shape=df.shape)
+    log.info("data.loaded", path=str(path), shape=df.shape)
 
     df = _fix_total_charges(df)
     df = _encode_target(df)

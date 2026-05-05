@@ -38,14 +38,13 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 systemctl enable docker
 systemctl start docker
 
-# Allow ubuntu user to use Docker without sudo
 usermod -aG docker ubuntu
 
 # ---------------------------------------------------------------------------
 # Project structure
 # ---------------------------------------------------------------------------
-PROJECT_DIR=/opt/mlflow-flask
-mkdir -p "$PROJECT_DIR"/mlflow
+PROJECT_DIR=/opt/mlflow-fastapi
+mkdir -p "$PROJECT_DIR"
 chown -R ubuntu:ubuntu "$PROJECT_DIR"
 
 # ---------------------------------------------------------------------------
@@ -63,7 +62,7 @@ version: "3.9"
 
 services:
   mlflow:
-    image: ghcr.io/mlflow/mlflow:latest
+    image: ghcr.io/mlflow/mlflow:v2.19.0
     container_name: mlflow
     restart: unless-stopped
     ports:
@@ -78,22 +77,23 @@ services:
         --port 5000
         --backend-store-uri sqlite:////mlflow/mlflow.db
         --default-artifact-root $ARTIFACT_URI
+        --static-prefix /mlflow
         --allowed-hosts "*"
         --cors-allowed-origins "*"
     networks:
       - app-net
 
-  flask-app:
+  fastapi:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: flask-app
+    container_name: fastapi
     restart: unless-stopped
     ports:
       - "${flask_port}:8080"
     environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - FLASK_ENV=production
+      - MLFLOW_TRACKING_URI=http://mlflow:5000/mlflow
+      - MLFLOW_EXPERIMENT_NAME=churn-mlp
     depends_on:
       - mlflow
     networks:
@@ -108,75 +108,48 @@ networks:
 COMPOSE
 
 # ---------------------------------------------------------------------------
-# Starter Flask app
+# Dockerfile e placeholder — substituídos pelo CI/CD no primeiro deploy
 # ---------------------------------------------------------------------------
-cat > "$PROJECT_DIR/app.py" <<'PYTHON'
-import os
-import mlflow
-from flask import Flask, jsonify, request
-
-app = Flask(__name__)
-
-mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
-mlflow.set_experiment("flask-app")
-
-
-@app.route("/health")
-def health():
-    return jsonify({"status": "ok"})
-
-
-@app.route("/predict", methods=["POST"])
-def predict():
-    data = request.get_json(force=True)
-
-    with mlflow.start_run():
-        mlflow.log_params(data.get("params", {}))
-        result = {"prediction": "replace with your model logic", "input": data}
-        mlflow.log_metrics({"requests": 1})
-
-    return jsonify(result)
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
-PYTHON
-
-cat > "$PROJECT_DIR/requirements.txt" <<'REQ'
-flask>=3.0
-mlflow>=2.12
-gunicorn>=21.0
-REQ
-
 cat > "$PROJECT_DIR/Dockerfile" <<'DOCKERFILE'
 FROM python:3.11-slim
-
 WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-COPY . .
-
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY placeholder.py ./src/api/app.py
+ENV PYTHONPATH=/app
 EXPOSE 8080
-
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "app:app"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
+CMD ["python", "-m", "uvicorn", "src.api.app:app", "--host", "0.0.0.0", "--port", "8080"]
 DOCKERFILE
+
+cat > "$PROJECT_DIR/placeholder.py" <<'PYTHON'
+from fastapi import FastAPI
+app = FastAPI()
+
+@app.get("/health")
+def health():
+    return {"status": "starting", "detail": "aguardando deploy via CI/CD"}
+PYTHON
+
+# Cria diretórios que o CI/CD vai popular
+mkdir -p "$PROJECT_DIR/src/api"
+mkdir -p "$PROJECT_DIR/configs"
 
 chown -R ubuntu:ubuntu "$PROJECT_DIR"
 
 # ---------------------------------------------------------------------------
-# Sobe os containers agora (user_data roda como root — sem problema de grupo)
+# Sobe MLflow agora; FastAPI sobe após o primeiro deploy do CI/CD
 # ---------------------------------------------------------------------------
 cd "$PROJECT_DIR"
 docker compose up -d --build
 
 # ---------------------------------------------------------------------------
-# systemd service — garante que sobe novamente após reboot
+# systemd service — reinicia stack após reboot
 # ---------------------------------------------------------------------------
-cat > /etc/systemd/system/mlflow-flask.service <<SERVICE
+cat > /etc/systemd/system/mlflow-fastapi.service <<SERVICE
 [Unit]
-Description=MLflow + Flask stack
+Description=MLflow + FastAPI stack
 After=docker.service network-online.target
 Requires=docker.service
 
@@ -184,7 +157,7 @@ Requires=docker.service
 Type=oneshot
 RemainAfterExit=yes
 WorkingDirectory=$PROJECT_DIR
-ExecStart=/usr/bin/docker compose up -d --build
+ExecStart=/usr/bin/docker compose up -d
 ExecStop=/usr/bin/docker compose down
 
 [Install]
@@ -192,6 +165,6 @@ WantedBy=multi-user.target
 SERVICE
 
 systemctl daemon-reload
-systemctl enable mlflow-flask
+systemctl enable mlflow-fastapi
 
 echo "=== user_data finished ==="

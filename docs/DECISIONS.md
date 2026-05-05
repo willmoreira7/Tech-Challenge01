@@ -85,12 +85,15 @@ Experimento MLflow: `churn-baselines` · Dataset hash: `58235c7e5c2ce5014bc3ed88
 
 ## Arquitetura MLP (Etapa 2)
 
-- Arquitetura spec: `Input(~30) → 256 → 128 → 64 → 32 → 1` (BatchNorm + ReLU + Dropout) — input atualizado após feature engineering
-- Loss function: `BCEWithLogitsLoss(pos_weight=tensor(2.7683))`
-- Otimizador: `Adam(lr=1e-3)` com `ReduceLROnPlateau(patience=5)`
-- Early stopping patience: `10 epochs` monitorando `val_loss`
-- Batch size: `a definir — testar 32 e 64`
-- Meta: superar LogisticRegression (PR-AUC=0.655, Recall=0.802)
+- [x] Arquitetura implementada: `Input(30) → Linear(64)+BN+ReLU+Dropout(0.3) → Linear(32)+BN+ReLU+Dropout(0.2) → Linear(1)` — input_dim=30 confirmado após feature engineering
+- [x] Loss function: `BCEWithLogitsLoss(pos_weight=tensor(2.7683))`
+- [x] Otimizador: `AdamW(lr=1e-3, weight_decay=1e-4)` com `ReduceLROnPlateau(patience=5)`
+- [x] Early stopping patience: `10 epochs` monitorando `val_loss`
+- [x] Batch size: `64` — melhor resultado nos experimentos
+- [x] Validação: `StratifiedKFold(k=5, seed=42)` no conjunto de treino + hold-out test 20%
+- [x] Threshold: otimizado por Expected Profit (não fixo em 0.5) — encontrado via varredura `[0.05, 0.95, step=0.01]`
+- [x] Implementado em: `src/models/mlp.py` (ChurnMLP) · `src/models/train.py` (loop + CV + MLflow)
+- [x] Meta: superar LogisticRegression (PR-AUC=0.655, Recall=0.802)
 
 ---
 
@@ -104,30 +107,38 @@ Experimento MLflow: `churn-baselines` · Dataset hash: `58235c7e5c2ce5014bc3ed88
 | DummyClassifier (most_frequent) | 0.500   | 0.265  | 0.000 | 0.000  | piso absoluto                |
 | DummyClassifier (stratified)    | 0.505   | 0.268  | 0.274 | 0.275  | piso probabilístico          |
 | LogisticRegression (balanced)   | 0.845   | 0.655  | 0.626 | 0.802  | **meta de negócio atingida** |
-| MLP v1                          | —       | —      | —     | —      | a registrar na Etapa 2       |
+| MLP v1 (atual)                  | 0.8506  | 0.6648 | 0.625 | 0.8467 | **supera baseline em PR-AUC** |
 
 
 ---
 
 ## API (Etapa 3)
 
-- Contrato `/predict`:
-  - Input: `CustomerFeatures` — campos: `a preencher após EDA`
-  - Output: `PredictionResult { churn_probability: float, churn: bool, model_version: str }`
-  - Erros: `422` (schema inválido), `500` (erro de inferência)
-- Contrato `/health`:
-  - Output: `{ status: "ok", model_version: str, uptime_seconds: float }`
-- Middleware de latência: registrar `latency_ms` em todo request via structlog
-- Modelo carregado no startup do app — não a cada request
+- [x] Framework: **FastAPI** em `src/api/` — schemas Pydantic, middleware structlog, lifespan context
+- [x] Endpoints implementados:
+  - `GET /` → `RootResponse` (info da API)
+  - `GET /health` → `HealthResponse { status, model_version, uptime_seconds, timestamp }`
+  - `POST /api/v1/predict` → `PredictResponse { churn_probability, churn_predicted, model_version, processing_time_ms }`
+  - `POST /api/v1/predict_batch` → `PredictBatchResponse` (até 10k registros)
+- [x] Validação: Pydantic v2 (`model_config = ConfigDict(...)`) — 422 automático em payload inválido
+- [x] Middleware: `LoggingMiddleware` (request/response + latência) + `RateLimitMiddleware` (10 req/30s por IP) — ambos em `src/api/utils.py`
+- [x] Modelo carregado no **startup via lifespan** a partir de `models/mlp_best.pt` + `models/pipeline.pkl`
+- [x] 51 testes de integração em `tests/integration/`
 
 ---
 
 ## Deploy (Etapa 4)
 
-- Estratégia escolhida: `batch vs. real-time — a definir`
-- Justificativa: `a preencher`
-- Plataforma: `AWS / Azure / GCP — a definir`
-- URL pública (bônus): `a preencher após deploy`
+- [x] Estratégia: **real-time** via API REST (FastAPI) — inferência por request individual, sem batch
+- [x] Justificativa: volume baixo (~7k clientes), decisão de retenção é individual e requer resposta imediata; batch não agrega valor operacional aqui
+- [x] Plataforma: **AWS** — EC2 (t3.medium, Ubuntu 22.04) + ALB + Route53 + ACM
+- [x] Serviços no EC2: dois containers Docker Compose — `mlflow` (porta 5000) + `flask-app` placeholder (porta 8080); FastAPI em `src/api/` é o alvo final
+- [x] Roteamento HTTPS: ALB com host-based rules → `mlflow.pocsarcotech.com` → MLflow · `api.pocsarcotech.com` → API
+- [x] Infraestrutura como código: Terraform em `iac/` — módulos keypair, networking, iam, storage, compute, alb
+- [x] Estado Terraform remoto: S3 bucket `tech-terraform-poc` / key `environment-pos/terraform.tfstate`
+- [x] URL MLflow: `https://mlflow.pocsarcotech.com/mlflow/`
+- [x] URL API: `https://api.pocsarcotech.com`
+- [x] CI/CD: `.github/workflows/ci-cd.yml` — único workflow com jobs `test → train → deploy` em cadeia; `train` e `deploy` só disparam em `main` com path filter por tipo de mudança
 
 ---
 
@@ -135,6 +146,10 @@ Experimento MLflow: `churn-baselines` · Dataset hash: `58235c7e5c2ce5014bc3ed88
 
 - **Prometheus + Grafana:** métricas operacionais da API (latência, erros, disponibilidade, uso de recurso) — stack inicialmente considerada para SLIs/SLOs em tempo quase real.
 - **MLflow:** experimentos, Model Registry e runs **batch** de avaliação/retraining (PR-AUC, Recall, Expected Profit) para comparar ao baseline; não substitui dashboards de infra.
-- **Drift:** variáveis contínuas → comparar distribuições com **KS**; categóricas nominais (ex.: `Contract`, `InternetService`) → **Chi-quadrado** sobre contagens por categoria — ver justificativa em [`docs/monitoring_plan.md`](monitoring_plan.md).
-- Plano detalhado (métricas, alertas, playbook): [`docs/monitoring_plan.md`](monitoring_plan.md).
+- **Drift:** variáveis contínuas → comparar distribuições com **KS**; categóricas nominais (ex.: `Contract`, `InternetService`) → **Chi-quadrado** sobre contagens por categoria — ver justificativa em [`docs/MONITORING_PLAN.md`](MONITORING_PLAN.md).
+- Plano detalhado (métricas, alertas, playbook): [`docs/MONITORING_PLAN.md`](MONITORING_PLAN.md).
 
+- [x] Etapa 1: LogisticRegression com `class_weight="balanced"` já atinge Recall=0.80 — o MLP precisa bater PR-AUC=0.655 mantendo Recall≥0.75. `TotalCharges` tinha correlação 0.826 com tenure — resolvido na etapa de feature engineering (removida; tenure substituída por log_tenure).
+- [x] Etapa 2: `StratifiedKFold` obrigatório por spec — adicionado no `train.py` como CV no conjunto de treino (80%) + hold-out test separado (20%); fold-wise metrics logadas no MLflow com prefixo `fold{k}_*` e agregadas em `cv_*_mean/std`.
+- [x] Etapa 3: Flask app em `iac/flask-app/` é placeholder — a API real é FastAPI em `src/api/`. Modelo carregado de `models/mlp_best.pt` no startup via lifespan. `--static-prefix /mlflow` no MLflow server desloca todos os endpoints para `/mlflow/*` — health check do ALB deve apontar para `/mlflow/health`, não `/health`.
+- [x] Etapa 4: Três workflows separados (tests, train, deploy) rodavam de forma independente e sem garantia de ordem — consolidados em `ci-cd.yml` com `needs:` e `dorny/paths-filter` para garantir que testes passem antes de treinar ou deployar, e que cada job só rode quando seus arquivos de interesse mudam.
