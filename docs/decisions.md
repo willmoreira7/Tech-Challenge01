@@ -47,6 +47,19 @@
 
 ## Métricas
 
+### Trade-off de custo: falso positivo e falso negativo
+
+No contexto de negócio, os erros **não têm o mesmo custo**:
+
+- **Falso negativo (FN):** o modelo indica que o cliente **não** vai cancelar, mas ele **cancela** — custo **alto** (perda de receita / cliente que poderia ter sido retido).
+- **Falso positivo (FP):** o modelo indica risco de cancelamento, mas o cliente **permanece** — custo **baixo** (ação de retenção aplicada sem necessidade, por exemplo desconto ou benefício).
+
+Oferecer desconto ou benefício a quem não ia cancelar é relativamente **barato**. Deixar escapar quem de fato iria churnar é **caro**. Por isso o modelo deve priorizar **reduzir falsos negativos** — e o **Recall** mede exatamente a capacidade de capturar os positivos reais (churn = sim entre todos os que realmente churnaram):
+
+**Objetivo:** maximizar a captura de clientes em risco real, aceitando **alguns alertas desnecessários** (FP), desde que o custo marginal dos FN continue sendo o gargalo de negócio.
+
+Essas decisões estão quantificadas na métrica econômica abaixo (FN pesando bem mais que FP).
+
 - Métrica de negócio: **Recall ≥ 0.75** — FN custa 20× mais que FP
 - Métrica técnica principal: **PR-AUC** — mais informativa que AUC-ROC em dados desbalanceados (26.5% positivos)
 - Threshold de decisão: otimizar por `Expected Profit = TP×1140 - FP×60 - FN×1200` (não fixar em 0.5)
