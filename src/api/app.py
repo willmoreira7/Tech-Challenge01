@@ -46,6 +46,7 @@ def create_app(enable_rate_limit: bool = True) -> FastAPI:
         middleware=middlewares,
         lifespan=get_lifespan(),
     )
+    app.state.start_time = 0.0
 
     @app.get("/", response_model=RootResponse)
     async def root():
