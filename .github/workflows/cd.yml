@@ -174,7 +174,7 @@ jobs:
           curl -sf http://localhost:8080/health | python -c "
           import sys, json; d = json.load(sys.stdin)
           assert d['status'] == 'healthy', f'status inesperado: {d}'
-          print('GET /health ✅', d['status'])
+          print('GET /health OK', d['status'])
           "
 
           curl -sf -X POST http://localhost:8080/api/v1/predict \
@@ -183,7 +183,7 @@ jobs:
             | python -c "
           import sys, json; d = json.load(sys.stdin)
           assert 0 <= d['churn_probability'] <= 1
-          print('POST /api/v1/predict ✅ churn_probability =', d['churn_probability'])
+          print('POST /api/v1/predict OK churn_probability =', d['churn_probability'])
           "
 
           docker stop smoke-api
@@ -206,7 +206,7 @@ jobs:
           gh release edit "${{ github.event.release.tag_name }}" \
             --notes "## Release Candidate \`${{ github.event.release.tag_name }}\`
 
-          > Smoke test passou ✅. Para deployar em produção, promova este pre-release para release.
+          > Smoke test passou. Para deployar em produção, promova este pre-release para release.
 
           ### Como promover
           Clique em **Edit** → desmarque **Set as a pre-release** → **Update release**.
@@ -225,6 +225,6 @@ jobs:
           ### Commit
           \`${{ github.sha }}\`"
 
-          echo "## RC Validado ✅" >> $GITHUB_STEP_SUMMARY
+          echo "## RC Validado" >> $GITHUB_STEP_SUMMARY
           echo "Tag: \`${{ github.event.release.tag_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "Promova em: https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }}" >> $GITHUB_STEP_SUMMARY
