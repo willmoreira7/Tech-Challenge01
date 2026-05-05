@@ -17,7 +17,6 @@
       "Bash(py -3 -c ' *)",
       "Bash(git *)",
       "Bash(python3 *)",
-      "Read(//home/matheusmunhoz/.local/bin/**)",
       "Bash(asdf which *)",
       "Bash(/usr/bin/python3.12 *)"
     ]
