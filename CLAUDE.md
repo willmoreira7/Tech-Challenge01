@@ -157,7 +157,7 @@ docker compose -f docker-compose.local.yml up -d --build
   - Validação de performance: Recall ≥ 0.75 (exit code 2 se falhar)
   - Salvamento de artefatos: modelo, pipeline, config, test_results
   - Logging estruturado via structlog
-  - Registrom em MLflow com experiment tracking
+  - Registro em MLflow com experiment tracking
 - **Performance**: Recall=0.8467, AUC-ROC=0.8506, PR-AUC=0.6648 (Fonte: `models/test_results.json`)
 - **Testes**: 13 testes unitários (todos passando)
 - **CI/CD**: Integrado em `.github/workflows/tests.yml` — treina antes de rodar testes
@@ -167,13 +167,34 @@ docker compose -f docker-compose.local.yml up -d --build
 - **Plataforma**: EC2 (t3.medium, Ubuntu 22.04) + ALB + Route53 + ACM
 - **URLs**:
   - API: https://api.pocsarcotech.com
-  - MLflow: https://mlflow.pocsarcotech.com/mlflow/
+  - MLflow: https://mlflow.pocsarcotech.com
 - **Módulos Terraform**: keypair, networking, iam, storage, compute, alb
 - **Backend remoto**: S3 (`tech-terraform-poc` / `environment-pos/terraform.tfstate`)
 - **Ref**: [iac/](iac/), [specs/iac.md](specs/iac.md), [docs/DECISIONS.md](docs/DECISIONS.md#deploy-etapa-4)
 
+### ✅ Baselines (DummyClassifier + LogisticRegression + Comparação)
+- **Status**: Implementados e registrados no MLflow remoto
+- **Notebooks**:
+  - `notebooks/dummy_classifier.ipynb` — DummyClassifier (most_frequent + stratified)
+  - `notebooks/baseline.ipynb` — LogisticRegression (balanced)
+  - `notebooks/baseline_comparison.ipynb` — Comparação completa (+ DecisionTree + RandomForest)
+- **MLflow experiment**: `churn-baselines` em `https://mlflow.pocsarcotech.com`
+- **Tracking URI**: lida de `MLFLOW_TRACKING_URI` via `.env` (fallback: SQLite local)
+- **Re-executar**:
+  ```bash
+  uv run jupyter nbconvert --to notebook --execute --inplace notebooks/dummy_classifier.ipynb
+  uv run jupyter nbconvert --to notebook --execute --inplace notebooks/baseline.ipynb
+  uv run jupyter nbconvert --to notebook --execute --inplace notebooks/baseline_comparison.ipynb
+  ```
+
+### ✅ Makefile
+- **Status**: Criado com todos os targets obrigatórios
+- **Targets**: `install`, `lint`, `test`, `train`, `run`, `mlflow`
+- **Ref**: [Makefile](Makefile)
+
 ### ✅ Validação Completa
-- **Linting**: ruff 0 errors
-- **Testes**: 64/64 passando (51 API + 13 training)
-- **Treinamento**: Exit code 0, métrica de negócio atendida (Recall=0.8467 ≥ 0.75)
+- **Linting**: ruff 0 errors (`make lint`)
+- **Testes**: 64/64 passando (51 API + 13 training) (`make test`)
+- **Treinamento**: Exit code 0, métrica de negócio atendida (Recall=0.8467 ≥ 0.75) (`make train`)
 - **Deploy**: API e MLflow acessíveis via HTTPS em produção
+- **Baselines**: Registrados no MLflow remoto (`churn-baselines`)

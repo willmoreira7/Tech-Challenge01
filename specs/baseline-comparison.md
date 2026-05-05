@@ -24,9 +24,11 @@ Notebook `notebooks/baseline_comparison.ipynb` que executa validação cruzada d
 ### Célula 1: Setup e Imports
 ```python
 # Imports
+import os
 import numpy as np
 import pandas as pd
 from pathlib import Path
+from dotenv import load_dotenv
 
 from sklearn.base import clone
 from sklearn.compose import ColumnTransformer
@@ -35,7 +37,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (
-    accuracy_score, f1_score, precision_score, recall_score, 
+    accuracy_score, f1_score, precision_score, recall_score,
     roc_auc_score, confusion_matrix, classification_report
 )
 from sklearn.model_selection import StratifiedKFold
@@ -46,13 +48,15 @@ from sklearn.tree import DecisionTreeClassifier
 import mlflow
 import mlflow.sklearn
 
+load_dotenv()
+
 # Config
 RANDOM_SEED = 42
 TARGET = "Churn"
 N_SPLITS = 5
 PROJECT_ROOT = Path.cwd()
 
-print(f"🚀 Baseline Comparison Notebook | SEED={RANDOM_SEED} | CV={N_SPLITS}")
+print(f"Baseline Comparison Notebook | SEED={RANDOM_SEED} | CV={N_SPLITS}")
 ```
 
 ### Célula 2: Load & Explore Data
@@ -87,6 +91,11 @@ print(f"🚀 Baseline Comparison Notebook | SEED={RANDOM_SEED} | CV={N_SPLITS}")
 
 ### Célula 7: Aggregate Metrics
 - Média e std por modelo
+- Configurar tracking URI via env var:
+  ```python
+  tracking_uri = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{PROJECT_ROOT.parent / 'mlflow.db'}")
+  mlflow.set_tracking_uri(tracking_uri)
+  ```
 - Log ao MLflow:
   - params: {model, random_seed, cv_folds}
   - metrics: {mean_accuracy, mean_roc_auc, ...}
@@ -116,7 +125,7 @@ print(f"🚀 Baseline Comparison Notebook | SEED={RANDOM_SEED} | CV={N_SPLITS}")
 | Fonte | Path |
 |-------|------|
 | Dataset raw | `data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv` |
-| Config MLflow | SQLite (criar automaticamente em `mlflow.db`) |
+| Config MLflow | `MLFLOW_TRACKING_URI` via `.env` (fallback: SQLite local em `mlflow.db`) |
 
 ---
 
@@ -125,7 +134,7 @@ print(f"🚀 Baseline Comparison Notebook | SEED={RANDOM_SEED} | CV={N_SPLITS}")
 | Tipo | Path | Descrição |
 |------|------|-----------|
 | Dataset cleaned | `data/processed/telco_churn_cleaned.csv` | Salvo como artifact no MLflow run |
-| MLflow runs | `mlflow.db` | Experiment: `churn-baselines` · 5 runs (um por modelo) |
+| MLflow runs | servidor via `MLFLOW_TRACKING_URI` | Experiment: `churn-baselines` · 5 runs (um por modelo) |
 | Notebook | `notebooks/baseline_comparison.ipynb` | Este arquivo |
 
 ---
@@ -159,12 +168,12 @@ seaborn >= 0.11.0
 
 ## Critérios de Aceitação
 
-- [ ] Notebook executa sem erros (end-to-end)
-- [ ] 5 runs MLflow criados (1 por modelo)
-- [ ] Tabela comparativa exibe μ ± σ para todas as 5 métricas
-- [ ] Recall do LogisticRegression ≥ 0.75 (validar contra decisions.md)
-- [ ] Visualizações renderizam sem warnings
-- [ ] Dataset cleaned salvo em `data/processed/`
+- [x] Notebook executa sem erros (end-to-end)
+- [x] 5 runs MLflow criados (1 por modelo) — registrados em `churn-baselines` no servidor remoto
+- [x] Tabela comparativa exibe μ ± σ para todas as 5 métricas
+- [x] Recall do LogisticRegression ≥ 0.75 (recall=0.802)
+- [x] Visualizações renderizam sem warnings
+- [x] Dataset cleaned salvo em `data/processed/`
 
 ---
 
