@@ -117,9 +117,10 @@ Experimento MLflow: `churn-baselines` · Dataset hash: `58235c7e5c2ce5014bc3ed88
 - [x] Framework: **FastAPI** em `src/api/` — schemas Pydantic, middleware structlog, lifespan context
 - [x] Endpoints implementados:
   - `GET /` → `RootResponse` (info da API)
-  - `GET /health` → `HealthResponse { status, model_version, uptime_seconds, timestamp }`
+  - `GET /health` → `HealthResponse` (`status`, `model_version`, `model_source`, `uptime_seconds`, `timestamp`)
   - `POST /api/v1/predict` → `PredictResponse { churn_probability, churn_predicted, model_version, processing_time_ms }`
   - `POST /api/v1/predict_batch` → `PredictBatchResponse` (até 10k registros)
+- Decisão binária na inferência HTTP: **probabilidade ≥ 0,5**; avaliação no treino pode usar limiar derivado de custo/lucro — ver `train.py` / métricas MLflow.
 - [x] Validação: Pydantic v2 (`model_config = ConfigDict(...)`) — 422 automático em payload inválido
 - [x] Middleware: `LoggingMiddleware` (request/response + latência) + `RateLimitMiddleware` (10 req/30s por IP) — ambos em `src/api/utils.py`
 - [x] Modelo carregado no **startup via lifespan** a partir de `models/mlp_best.pt` + `models/pipeline.pkl`

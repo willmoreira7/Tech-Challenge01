@@ -9,15 +9,20 @@ Tests
 
 **Repositório oficial - Fase 1 do Tech Challenge FIAP (Engenharia de Machine Learning)**
 
-Pipeline ML **production-ready** para predição de churn em operadora de telecomunicações. Development segue padrões de engenharia de ML profissional com rede neural (PyTorch), baseline (Scikit-Learn), testes automatizados (82% coverage), API REST e governance completa.
+Projeto de **predição de churn** com pipeline reprodutível: **PyTorch (MLP)**, pré-processamento **scikit-learn**, **FastAPI** para inferência, **MLflow** para experimentos e **testes automatizados** (unitários, integração e smoke) em CI. Para monitoramento e roadmap operacional além do código, ver [docs/MONITORING_PLAN.md](docs/MONITORING_PLAN.md).
 
 ### 🌐 URLs de Produção (AWS)
 
-| Serviço | URL |
-|---------|-----|
-| **API FastAPI** | https://api.pocsarcotech.com |
-| **MLflow UI** | https://mlflow.pocsarcotech.com |
-| **API Docs (Swagger)** | https://api.pocsarcotech.com/docs |
+
+| Serviço                | URL                                                                    |
+| ---------------------- | ---------------------------------------------------------------------- |
+| **API FastAPI**        | [https://api.pocsarcotech.com](https://api.pocsarcotech.com)           |
+| **MLflow UI**          | [https://mlflow.pocsarcotech.com](https://mlflow.pocsarcotech.com)     |
+| **API Docs (Swagger)** | [https://api.pocsarcotech.com/docs](https://api.pocsarcotech.com/docs) |
+
+
+
+[ML_CANVAS.md](docs/ML_CANVAS.md) complementa com **cenários de negócio e metas**; métricas oficiais do modelo vêm do último treino e dos relatórios de avaliação (CI / MLflow).
 
 ---
 
@@ -59,25 +64,22 @@ Pipeline ML **production-ready** para predição de churn em operadora de teleco
 
 | Métrica                 | Target                        | Status                              |
 | ----------------------- | ----------------------------- | ----------------------------------- |
-| **AUROC (Prim.)**       | ≥ 0.82 (meta), ≥ 0.88 (ideal) | ✅ **0.8506** (MLP)                 |
-| **Recall (Crítico)**    | ≥ 0.75                        | ✅ **0.8467** (MLP)                 |
-| **Precision**           | 0.55 - 0.75                   | ✅ **0.4953** (MLP)                 |
-| **PR-AUC (Secundária)** | ≥ 0.65                        | ✅ **0.6648** (MLP)                 |
-| **F1-Score**            | ≥ 0.70                        | ✅ **0.625** (MLP)                  |
-| **Expected Profit**     | ≥ R$ 2M/mês                   | ✅ Em validação (threshold optimize)|
+| **AUROC (Prim.)**       | ≥ 0.82 (meta), ≥ 0.88 (ideal) | ✅ **0.8506** (MLP)                  |
+| **Recall (Crítico)**    | ≥ 0.75                        | ✅ **0.8467** (MLP)                  |
+| **Precision**           | 0.55 - 0.75                   | ✅ **0.4953** (MLP)                  |
+| **PR-AUC (Secundária)** | ≥ 0.65                        | ✅ **0.6648** (MLP)                  |
+| **F1-Score**            | ≥ 0.70                        | ✅ **0.625** (MLP)                   |
+| **Expected Profit**     | ≥ R$ 2M/mês                   | ✅ Em validação (threshold optimize) |
 
 
-### Objetivos Técnicos ✅ Implementados
+### Objetivos técnicos (implementação neste repo)
 
-- ✅ **EDA Avançada**: Análise de drivers de churn (tenure, contrato, serviços) — Notebooks em `notebooks/`
-- ✅ **Baseline ML**: 5 baselines avaliados com StratifiedKFold(k=5) — Dummy, Logistic Regression, Decision Tree, Random Forest + Random Forest TUNED
-- ✅ **Hyperparameter Tuning**: Random Search (20 iterações) → +2.2% ROC-AUC, +20.3% F1-Score em Random Forest
-- ✅ **Deep Learning**: Rede Neural (PyTorch) com **Recall=0.8467, ROC-AUC=0.8506, PR-AUC=0.6648** (meta Recall ≥0.75 ✅)
-- ✅ **Reprodutibilidade**: Random seeds fixados (RANDOM_SEED=42), versionamento MLflow, CI/CD integrado
-- ✅ **API Production**: FastAPI com 51 testes de integração, rate limiting, latência <100ms (p50), <200ms (p99)
-- ✅ **Testes Robusto**: 64 testes (51 integração + 13 unit), **82%+ code coverage**
-- ✅ **Monitoring & Governance**: Model Card com vieses e limitações, MLflow tracking completo
-- ✅ **Qualidade de Código**: Ruff, Mypy, pre-commit hooks, linting integrado
+- **EDA e baselines**: notebooks em `notebooks/`; baselines sklearn avaliados no trabalho de curso.
+- **Modelo principal**: MLP PyTorch com métricas reportadas no README / Model Card (valores dependem do último treino).
+- **Reprodutibilidade**: seeds fixas, artefatos versionáveis (`mlp_best.pt`, `pipeline.pkl`, `mlp_config.json`), CI que treina e executa testes.
+- **API**: FastAPI com validação Pydantic, rate limit e testes de integração; contrato espelhado no OpenAPI e na secção **API FastAPI** abaixo.
+- **Qualidade**: Ruff, cobertura pytest em CI.
+- **Planejamento de pós-deploy**: Model Card, plano de monitoramento e Canvas — ver `docs/`.
 
 ---
 
@@ -87,75 +89,43 @@ Pipeline ML **production-ready** para predição de churn em operadora de teleco
 
 Para **contexto completo do projeto**, incluindo análise econômica detalhada, parâmetros de mercado brasileiro, metas de KPI, SLOs, roadmap CRISP-DM e estratégia de monitoramento, consulte:
 
-📖 **[ML_CANVAS.md](docs/ML_CANVAS.md)** – Documento estratégico com:
+📖 **[ML_CANVAS.md](docs/ML_CANVAS.md)** — contexto de negócio, segmentação, framework de lucro esperado, KPIs e roadmap CRISP-DM. **[MONITORING_PLAN.md](docs/MONITORING_PLAN.md)** — drift, alertas e diretrizes de observabilidade do modelo e da API.
 
-- ✅ Análise de negócio (churn vs retenção em telecomunicações Brasil)
-- ✅ Segmentação econômica (Pós-Pago vs Pré-Pago com parâmetros regionais)
-- ✅ Expected Profit framework (calibração threshold com custos reais R$)
-- ✅ Metas técnicas alinhadas (AUROC ≥0.82, Recall ≥0.75, PR-AUC ≥0.65)
-- ✅ SLOs de produção (99.5% uptime, p99 ≤200ms, throughput ≥500 req/s)
-- ✅ Roadmap 8-semanas (Business Understanding → Deployment → Go-Live)
-- ✅ Stakeholder mapping e KPIs negócio × técnico
+Conteúdo típico do Canvas:
 
-**Use este documento para:**
-
-- 🎯 Alinhamento com stakeholders e sponsors
-- 📊 Baseline de métricas esperadas em produção
-- 🔧 Configuração de thresholds e alertas de monitoramento
-- 📈 Justificativa econômica do projeto
+- Análise de negócio e parâmetros de mercado
+- Metas técnicas (AUROC, Recall, PR-AUC) — conferir último treino / MLflow
+- Referências de desempenho operacional (uptime, latência)
+- Roadmap CRISP-DM em linha com o plano de monitoramento
 
 ---
 
-## 🏗️ Arquitetura de Deploy & Decisões Técnicas
+## Arquitetura do sistema
 
-### Padrão: Hybrid Real-Time + Batch
+### Fluxo implementado no código
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    ARQUITETURA GERAL                         │
-├─────────────────────────────────────────────────────────────┤
-│                                                               │
-│  [Dados Brutos] ──> [ETL] ──> [Feature Store] ──> [Models]  │
-│                                 ▲                              │
-│                    ┌────────────┴─────────────┐              │
-│                    │                          │               │
-│              [Real-Time API]         [Batch Nightly]        │
-│              (FastAPI <100ms)        (Previsão em massa)    │
-│                    │                          │               │
-│                    └────────────┬─────────────┘              │
-│                                 ▼                              │
-│                          [Predictions] ──> [CRM/Actions]    │
-│                                                               │
-└─────────────────────────────────────────────────────────────┘
-```
+1. **Ingestão**: CSV Telco em `data/raw/`; preparação em `[src/data/loader.py](src/data/loader.py)`.
+2. **Features**: engenharia e pré-processamento sklearn em `[src/features/pipeline.py](src/features/pipeline.py)` (ver `[specs/feature-pipeline.md](specs/feature-pipeline.md)`).
+3. **Treino**: `[src/models/train.py](src/models/train.py)` — hold-out estratificado (20%), validação cruzada StratifiedKFold (*k* = 5) no conjunto de treino, registo MLflow, artefatos em `models/`.
+4. **Inferência**: `[src/api/](src/api/)` — carregamento de modelo e `pipeline.pkl` no arranque; endpoints síncronos (`predict`, `predict_batch`), contrato em OpenAPI.
 
-### Real-Time API (Tier 1: Crítico)
+Diagrama lógico:
 
 ```
-Endpoint: POST /api/v1/predict
-Entrada: features estruturadas
-Saída: Churn probability + risk_level
-SLA: p50 ≤ 100ms, p99 ≤ 200ms, 99.5% uptime
-Use Case: Contato CRM em tempo real, portal de cliente
+[Dados brutos CSV] → [loader] → [pipeline de features] → [treino MLP + avaliação]
+        → artefatos: mlp_best.pt | pipeline.pkl | mlp_config.json
+                                              → [API FastAPI]
 ```
 
-### Batch Prediction (Tier 2: Noturno)
+### Documentação relacionada
 
-```python
-# Trigger: Daily 02:00 UTC
-# Input: Dataset completo de clientes ativos
-# Output: Churn scores salvos em Data Warehouse
-# Use Case: Segmentação, campanhas, reporting executivo
-```
 
-### Justificativa Arquitetural
+| Documento                                     | Conteúdo                            |
+| --------------------------------------------- | ----------------------------------- |
+| [ML_CANVAS.md](docs/ML_CANVAS.md)             | Negócio, KPIs, roadmap CRISP-DM     |
+| [MONITORING_PLAN.md](docs/MONITORING_PLAN.md) | Drift, alertas, observabilidade     |
+| [DECISIONS.md](docs/DECISIONS.md)             | Infraestrutura e decisões de deploy |
 
-1. **Real-time API**: Critical path → Contato CRM em < 200ms
-2. **Batch**: Scalability → 70M base em paralelo noturno
-3. **Hybrid**: Otimiza custo vs SLA (GPU + autoscaling)
-4. **Monitoring**: operação (Prometheus + Grafana, planejado), modelo/avaliação batch (MLflow + [`docs/MONITORING_PLAN.md`](docs/MONITORING_PLAN.md)); drift em contínuas (KS) e categóricas nominais (Chi-quadrado).
-
-Detalhes de deploy em evolução: [`docs/DECISIONS.md`](docs/DECISIONS.md) (Etapa 4).
 
 ---
 
@@ -199,19 +169,20 @@ Tech-Challenge01/
 │   ├── mlp_training.ipynb        # Training logs & ablations
 │   └── ... (demais notebooks)
 │
-├── tests/                        # Testes automatizados (64 testes total)
-│   ├── conftest.py               # Fixtures pytest
-│   ├── unit/                     # 13 testes unitários
+├── tests/
+│   ├── conftest.py
+│   ├── unit/                     # Testes unitários (dados, features, treino, schemas)
 │   │   ├── test_data_loader.py
+│   │   ├── test_loader_pandera.py
 │   │   ├── test_feature_pipeline.py
-│   │   ├── test_train_script.py
-│   │   └── conftest.py
-│   └── integration/              # 51 testes de integração API
+│   │   ├── test_schema.py
+│   │   └── test_train_script.py
+│   └── integration/              # Testes HTTP da API
+│       ├── conftest.py
 │       ├── test_api_root_health.py
 │       ├── test_api_predict.py
 │       ├── test_api_predict_batch.py
-│       ├── test_api_errors.py
-│       └── conftest.py
+│       └── test_api_errors.py
 │
 ├── docs/                         # Documentação técnica
 │   ├── MODEL_CARD.md             # Specs, limitações, vieses
@@ -290,10 +261,7 @@ pip install -r requirements.txt
 ### 4. Executar Testes
 
 ```bash
-# Todos os testes (64 no total)
-task test
-
-# Ou manualmente
+# Suite completa (executar após treino se forem necessários artefatos em models/)
 pytest tests/ -v --cov=src
 ```
 
@@ -359,24 +327,22 @@ jupyter notebook notebooks/mlp_training.ipynb
 
 ## 📊 Pipeline de Treinamento
 
-### Etapa 1: Preparação de Dados
+### Etapa 1: Preparação de dados
 
-- Carregamento e limpeza (valores faltantes, duplicatas)
-- Detecção e tratamento de outliers (IQR method)
-- Estratificação de classes (churn: 27%, não-churn: 73%)
-- Divisão treino (60%) / validação (20%) / teste (20%) com StratifiedKFold
+- Leitura do CSV; tratamento de `TotalCharges` vazios (mediana); codificação do alvo `Churn`; remoção de `customerID` (validação opcional com Pandera quando instalado).
+- Partição estratificada **80% / 20%** (treino com CV interno / conjunto de teste final); ver `[train.py](src/models/train.py)`.
 
 ### Etapa 2: Feature Engineering (Scikit-Learn)
 
-Implementação reprodutível em [`src/features/pipeline.py`](src/features/pipeline.py) + [`specs/feature-pipeline.md`](specs/feature-pipeline.md):
+Implementação reprodutível em `[src/features/pipeline.py](src/features/pipeline.py)` + `[specs/feature-pipeline.md](specs/feature-pipeline.md)`:
 
-1. **`engineer_features`** (via `FunctionTransformer`): cria `log_tenure = log(tenure+1)`, `is_fiber`, `n_add_on_services` (contagem de add-ons); remove colunas de baixo sinal (`gender`, `PhoneService`, `MultipleLines`, `TotalCharges`, `StreamingTV`, `StreamingMovies`).
+1. `**engineer_features`** (via `FunctionTransformer`): cria `log_tenure = log(tenure+1)`, `is_fiber`, `n_add_on_services` (contagem de add-ons); remove colunas de baixo sinal (`gender`, `PhoneService`, `MultipleLines`, `TotalCharges`, `StreamingTV`, `StreamingMovies`).
 2. **Numéricas**: `SimpleImputer(median)` + `StandardScaler` — `log_tenure`, `MonthlyCharges`, `SeniorCitizen`, `n_add_on_services`.
 3. **Binárias**: `OrdinalEncoder` — `Partner`, `Dependents`, `PaperlessBilling`, `is_fiber`.
 4. **Nominais**: `OneHotEncoder(drop="if_binary")` — `InternetService`, serviços online, `Contract`, `PaymentMethod`.
 5. **Saída**: ~**30** colunas numéricas codificadas (antes ~40 sem engenharia deliberada).
 
-Notebook de validação: [`notebooks/feature_engineering.ipynb`](notebooks/feature_engineering.ipynb).
+Notebook de validação: `[notebooks/feature_engineering.ipynb](notebooks/feature_engineering.ipynb)`.
 
 ### Etapa 3: Modelagem - Baseline vs Deep Learning
 
@@ -385,6 +351,7 @@ Notebook de validação: [`notebooks/feature_engineering.ipynb`](notebooks/featu
 **Método**: RandomizedSearchCV com 20 iterações aleatórias e StratifiedKFold(k=5)
 
 **Espaço de Hiperparâmetros Explorado**:
+
 - `n_estimators`: [50, 100, 150, 200, 250]
 - `max_depth`: [5, 10, 15, 20, None]
 - `min_samples_split`: [2, 5, 10, 15]
@@ -395,6 +362,7 @@ Notebook de validação: [`notebooks/feature_engineering.ipynb`](notebooks/featu
 **Métrica de Otimização**: ROC-AUC (0.8389 alcançado)
 
 **Resultado da Busca**:
+
 - Melhor Run: 20 iterações testadas automaticamente
 - Tempo Computacional: ~45 minutos (paralelo com n_jobs=-1)
 - Benchmark vs Default: +2.2% ROC-AUC, +20.3% F1-Score
@@ -428,23 +396,27 @@ baseline = LogisticRegression(
 
 Baselines avaliados com StratifiedKFold k=5 (média ± std). Random Forest TUNED otimizado via Random Search. MLP avaliado em holdout test set (20%).
 
-| Modelo | Accuracy | ROC AUC | Recall | Precision | F1 |
-|---|---|---|---|---|---|
-| DummyClassifier (most_frequent) | 0.7346±0.000 | 0.5000±0.000 | 0.0000±0.000 | 0.0000±0.000 | 0.0000±0.000 |
-| DummyClassifier (stratified) | 0.6129±0.006 | 0.5050±0.007 | 0.2750±0.011 | 0.2727±0.011 | 0.2738±0.011 |
-| Logistic Regression (balanced) | 0.7456±0.005 | 0.8449±0.013 | **0.8020±0.015** | 0.5132±0.007 | 0.6258±0.009 |
-| Decision Tree (balanced) | 0.7316±0.013 | 0.6588±0.020 | 0.5029±0.036 | 0.4940±0.024 | 0.4983±0.030 |
-| Random Forest (default) | 0.7842±0.010 | 0.8207±0.010 | 0.4746±0.035 | 0.6223±0.024 | 0.5380±0.029 |
+
+| Modelo                                  | Accuracy         | ROC AUC            | Recall           | Precision        | F1               |
+| --------------------------------------- | ---------------- | ------------------ | ---------------- | ---------------- | ---------------- |
+| DummyClassifier (most_frequent)         | 0.7346±0.000     | 0.5000±0.000       | 0.0000±0.000     | 0.0000±0.000     | 0.0000±0.000     |
+| DummyClassifier (stratified)            | 0.6129±0.006     | 0.5050±0.007       | 0.2750±0.011     | 0.2727±0.011     | 0.2738±0.011     |
+| Logistic Regression (balanced)          | 0.7456±0.005     | 0.8449±0.013       | **0.8020±0.015** | 0.5132±0.007     | 0.6258±0.009     |
+| Decision Tree (balanced)                | 0.7316±0.013     | 0.6588±0.020       | 0.5029±0.036     | 0.4940±0.024     | 0.4983±0.030     |
+| Random Forest (default)                 | 0.7842±0.010     | 0.8207±0.010       | 0.4746±0.035     | 0.6223±0.024     | 0.5380±0.029     |
 | **Random Forest (Random Search TUNED)** | **0.7896±0.012** | **0.8389±0.011** ✅ | **0.6127±0.032** | **0.6891±0.018** | **0.6478±0.024** |
-| **MLP (PyTorch)** | **0.8067** | **0.8506** ✅ | **0.8467** ✅ | **0.4953** | **0.625** |
+| **MLP (PyTorch)**                       | **0.8067**       | **0.8506** ✅       | **0.8467** ✅     | **0.4953**       | **0.625**        |
+
 
 **Meta de negócio: Recall ≥ 0.75** ✅  
+
 - Logistic Regression: 0.80 ± 0.015 (atinge target)
 - Random Forest (TUNED): 0.6127 (não atinge, mas melhora vs default)
 - **MLP (PyTorch): 0.8467** (atinge target com AUC-ROC=0.8506, PR-AUC=0.6648)
 - Exit code: 0 ✅ Validação de performance passou
 
 **Random Search Impact (Random Forest)**:
+
 - **ROC-AUC**: 0.8207 → 0.8389 (+2.2%)
 - **Accuracy**: 0.7842 → 0.7896 (+0.7%)
 - **F1-Score**: 0.5380 → 0.6478 (+20.3%)
@@ -475,7 +447,7 @@ Output Layer (1) + Sigmoid  [churn probability]
 - **Scheduler**: Cosine Annealing (warm-up 5 epochs, T_max=100)
 - **Regularization**: L2=0.0001, Dropout escalado por layer (0.3, 0.2, 0.2)
 - **Batch Size**: 32
-- **Epochs**: 100 com early stopping (patience=10, monitor=val_auroc)
+- **Epochs**: 100 com *early stopping* (paciência conforme `configs/mlp_default.yaml`, monitorização da **perda de validação**)
 - **Threshold Otimizado**: Grid search 0.01-0.99 para maximizar Expected Profit (não 0.5)
 
 **Justificativa NN vs Baseline**:
@@ -486,143 +458,72 @@ Output Layer (1) + Sigmoid  [churn probability]
 4. **Expected Profit**: NN Recall 0.80 = +R$ 220K/1M clientes vs Logistic Recall 0.70
 5. Batch normalization melhora estabilidade treino
 
-### Etapa 4: Avaliação (com Scikit-Learn + MLflow)
+### Etapa 4: Avaliação e registo
 
-- **Métricas Primárias**: AUROC, Recall, Precision, PR-AUC, F1-Score
-- **Métrica Econômica**: Expected Profit = TP×1.140 - FP×60 - FN×1.200 (Reais)
-- **Validação Cruzada**: 5-Fold StratifiedKFold (balanceamento por fold)
-- **Análise Detalhada**: Confusion matrix, ROC/PR curves, classification_report
-- **Threshold Otimização**: Grid search 0.01-0.99 maximizando Expected Profit
-- **Feature Importance**: permutation_importance (quais features impactam predição)
-- **Vieses & Fairness**: Métricas por segmento (pós/pré-pago), classe social, região
-- **MLflow Tracking**: Params, metrics (por epoch), artifacts, tags (dataset version)
+- **Métricas**: AUROC, PR-AUC, *recall*, *precision*, F1, exatidão; limiar de decisão para métricas derivado do lucro esperado no código de avaliação (ver `train.py`).
+- **Validação**: StratifiedKFold no treino; desempenho de referência no hold-out de teste (20%).
+- **MLflow**: parâmetros, métricas do run, modelo PyTorch e artefato `pipeline.pkl` (conforme configuração de *tracking*).
 
-### Etapa 5: Deployment
+### Etapa 5: Artefatos para inferência e CI
 
-- Modelo de melhor F1 salvo em `models/best_model.pth`
-- Scaler persistido em `models/scaler.pkl`
-- Metadata (threshold ótimo, feature names) em `models/model_metadata.json`
-- Versionado com git tags e MLflow Model Registry
+- `models/mlp_best.pt` — pesos do MLP  
+- `models/pipeline.pkl` — pipeline sklearn de pré-processamento  
+- `models/mlp_config.json` — dimensão de entrada e metadados do último treino
 
 ---
 
-## 🧪 Testes Automatizados (82%+ Coverage)
+## Testes automatizados
 
-O projeto inclui **64 testes** estruturados em 2 módulos, totalizando **82%+ de cobertura** em `src/`:
+As suites encontram-se em `tests/unit/` e `tests/integration/`. O projeto usa **pytest**; o comando `pytest --collect-only` permite conferir o número atual de casos (da ordem de **75**, dependendo da revisão do repositório).
 
-### Unit Tests (13 testes)
-
-```bash
-pytest tests/unit/ -v
-```
-
-**Arquivo: `tests/unit/test_data_loader.py`**
-- ✅ Carregamento de dataset com validação
-- ✅ Valores faltantes detectados (TotalCharges)
-- ✅ Tipos de dados corretos
-- ✅ Estratificação funciona (27% churn)
-- ✅ Sem duplicatas após limpeza
-
-**Arquivo: `tests/unit/test_feature_pipeline.py`**
-- ✅ `engineer_features`: colunas esperadas, ranges de `log_tenure` e `n_add_on_services`
-- ✅ Pipeline completo: shape, sem NaN, determinístico
-- ✅ `OneHotEncoder` com `handle_unknown` em categoria nova
-
-**Arquivo: `tests/unit/test_train_script.py`**
-- ✅ Carregamento de config.yaml
-- ✅ Modelo MLP inicializa corretamente
-- ✅ Loop de treinamento funciona (epochs < 5s)
-- ✅ Early stopping ativa
-- ✅ MLflow logging funciona
-
-### Integration Tests - API (51 testes)
+### Execução
 
 ```bash
-pytest tests/integration/ -v
-```
-
-**Arquivo: `tests/integration/test_api_root_health.py`**
-- ✅ GET / retorna 200 + uptime
-- ✅ GET /health retorna 200 + status "ok"
-- ✅ Response headers corretos (Content-Type: application/json)
-
-**Arquivo: `tests/integration/test_api_predict.py`** (30+ testes)
-- ✅ POST /api/v1/predict com dados válidos → 200 OK
-- ✅ Response contém: churn_probability, risk_level, confidence
-- ✅ Probabilidade em range [0, 1]
-- ✅ Latência <100ms (p50) e <200ms (p99)
-- ✅ Carregamento automático de modelo
-- ✅ Rate limiting: 10 req/30sec
-- ✅ Reject inputs com tipos errados (422)
-- ✅ Reject inputs com features faltando (422)
-- ✅ Batch prediction até 10k registros
-- ✅ Consistência de predictions
-
-**Arquivo: `tests/integration/test_api_predict_batch.py`** (10+ testes)
-- ✅ POST /api/v1/predict_batch com array de clientes
-- ✅ Response contém lista de predições
-- ✅ Rejeta batch > 10.000 registros
-- ✅ Métricas agregadas (avg confidence, dist risk_level)
-- ✅ Processamento paralelo de batch
-
-**Arquivo: `tests/integration/test_api_errors.py`** (5+ testes)
-- ✅ Erro 422 para JSON inválido
-- ✅ Erro 503 se modelo não está carregado
-- ✅ Erro 429 se rate limit excedido
-- ✅ Erro 500 com mensagem genérica (segurança)
-- ✅ Rollback graceful em falhas
-
-### Rodar Testes com Cobertura
-
-```bash
-# Todos os testes com coverage
 task test
 # ou
-pytest tests/ -v --cov=src --cov-report=html --cov-report=term
-
-# Apenas testes de integração (API)
-pytest tests/integration/ -v
-
-# Apenas testes unitários
+pytest tests/ -v --cov=src --cov-report=term-missing
 pytest tests/unit/ -v
-
-# Com coverage mínimo (fail se <80%)
-pytest tests/ -v --cov=src --cov-fail-under=80
+pytest tests/integration/ -v
 ```
 
-**Coverage Actual**: 82%+ em `src/` (exclui notebooks, iac)
+### Escopo das suites
+
+
+| Pasta                | Foco                                                                                                             |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `tests/unit/`        | `loader`, pipeline de features, schemas, saneamento do fluxo de treino (`train.py` / artefatos quando existirem) |
+| `tests/integration/` | Rotas `/`, `/health`, predição simples e em *batch*, erros HTTP (422, 429, 503), *rate limiting*                 |
+
+
+Relatórios de cobertura são gerados com `--cov=src`; percentagens atualizadas resultam do último comando ou do job de CI.
+
+### Cobertura (opcional)
+
+```bash
+pytest tests/ -v --cov=src --cov-report=html --cov-report=term
+pytest tests/ -v --cov=src --cov-fail-under=80   # falha local se abaixo do limiar
+```
 
 ---
 
-## 🛠️ Qualidade de Código & DevOps
+## 🛠️ Qualidade de código e CI/CD
 
-### Pre-commit Hooks (Executados antes de cada commit)
+### Ferramentas locais
 
-```bash
-# Instalar hooks
-pre-commit install
+- **Ruff** — lint e formatação (`task lint`, `task format`).
+- **Mypy** — tipagem estática (dependência do projeto; integração opcional em fluxos locais).
 
-# Rodar manualmente
-pre-commit run --all-files
-```
+### CI/CD (GitHub Actions)
 
-**Verificações Automatizadas**:
+Três *workflows* com responsabilidades distintas:
 
-- 🔵 **Black**: Formatação automática (line-length=100)
-- 🔵 **Ruff**: Linting ultrafast (D100-D103 docstrings, E501 line-too-long)
-- 🔵 **Isort**: Ordenação de imports por seção
-- 🔵 **Mypy**: Type checking estático (modo básico)
-- 🔵 **Pytest**: Roda testes críticos pré-commit
 
-### CI/CD Pipeline (GitHub Actions)
+| Workflow     | Arquivo      | Gatilho                                | Jobs                                                                             |
+| ------------ | ------------ | -------------------------------------- | -------------------------------------------------------------------------------- |
+| **PR Check** | `pr.yml`     | Pull Request → `main`                  | lint + testes unitários                                                          |
+| **CD**       | `cd.yml`     | Release criada como **pre-release**    | lint → treino → testes integração → build Docker → smoke test                    |
+| **Deploy**   | `deploy.yml` | Pre-release **promovida** para release | pull imagem → SSH EC2 → `docker compose up` → health check → rollback automático |
 
-Três workflows independentes com responsabilidades distintas:
-
-| Workflow | Arquivo | Gatilho | Jobs |
-|---|---|---|---|
-| **PR Check** | `pr.yml` | Pull Request → `main` | lint + testes unitários |
-| **CD** | `cd.yml` | Release criada como **pre-release** | lint → treino → testes integração → build Docker → smoke test |
-| **Deploy** | `deploy.yml` | Pre-release **promovida** para release | pull imagem → SSH EC2 → `docker compose up` → health check → rollback automático |
 
 ### Processo de Release
 
@@ -640,6 +541,7 @@ gh release edit v1.0.0 --prerelease=false
 ```
 
 O `deploy.yml` executa automaticamente após a promoção:
+
 1. Faz pull da imagem `mmacanmunhoz/churn-api:v1.0.0` no Docker Hub
 2. Acessa a EC2 via SSH e atualiza o `docker compose`
 3. Aguarda health check em `https://api.pocsarcotech.com/health`
@@ -647,124 +549,83 @@ O `deploy.yml` executa automaticamente após a promoção:
 
 ---
 
-## 📡 API FastAPI - Especificação Completa
+## API REST (FastAPI)
 
-### Health Check Endpoints
+A especificação **canônica** é o **OpenAPI** exposto em `/docs` e `/openapi.json`. Os corpos de pedido seguem os nomes de colunas do *dataset* Telco (`Contract`, `tenure`, `MonthlyCharges`, …), definidos em `[src/api/schemas.py](src/api/schemas.py)`.
 
-#### GET `/`
+### `GET /`
 
-**Response (200 OK)**:
+**Response (200)**: metadados da API (`app`, `version`, `description`, `documentation`, `endpoints`).
+
+### `GET /health`
+
+**Response (200)** — campos principais:
+
+- `status`: `healthy` se modelo e pipeline carregados; caso contrário `degraded`
+- `model_version`, `model_source` (`local_file` | `mlflow_registry`), `uptime_seconds`, `timestamp`
+
+### `POST /api/v1/predict`
+
+**Request** — um objeto `PredictRequest` (campos obrigatórios; exemplo reduzido):
+
 ```json
 {
-  "status": "ok",
-  "uptime_seconds": 3600,
-  "model_loaded": true,
-  "version": "1.0.0"
+  "gender": "Male",
+  "SeniorCitizen": 0,
+  "Partner": "Yes",
+  "Dependents": "No",
+  "tenure": 12,
+  "PhoneService": "Yes",
+  "MultipleLines": "No phone service",
+  "InternetService": "Fiber optic",
+  "OnlineSecurity": "No",
+  "OnlineBackup": "No",
+  "DeviceProtection": "No",
+  "TechSupport": "No",
+  "StreamingTV": "No",
+  "StreamingMovies": "No",
+  "Contract": "Month-to-month",
+  "PaperlessBilling": "Yes",
+  "PaymentMethod": "Electronic check",
+  "MonthlyCharges": 70.35,
+  "TotalCharges": 844.20
 }
 ```
 
-#### GET `/health`
-
-**Response (200 OK)**:
-```json
-{
-  "status": "ok"
-}
-```
-
-### Prediction Endpoints
-
-#### POST `/api/v1/predict`
-
-**Request Body (JSON)** — Single prediction:
+**Response (200)**:
 
 ```json
 {
-  "customer_id": "CUST_12345",
-  "contract_type": "Month-to-month",
-  "tenure_months": 24,
-  "monthly_charges": 65.5,
-  "total_charges": 1570.0,
-  "internet_type": "Fiber optic",
-  "phone_service": true,
-  "streaming_tv": true,
-  "streaming_movies": false,
-  "tech_support": false
-  // ... mais 40+ features
-}
-```
-
-**Response (200 OK)**:
-
-```json
-{
-  "customer_id": "CUST_12345",
   "churn_probability": 0.73,
-  "churn_risk_category": "HIGH",
-  "confidence": 0.92,
-  "recommended_action": "offer_discount_or_upgrade",
-  "model_version": "v1.0.0",
-  "prediction_timestamp": "2026-05-04T14:30:00Z"
+  "churn_predicted": true,
+  "model_version": "1.0.0",
+  "processing_time_ms": 12.5
 }
 ```
 
-**Status Codes**:
+Critério atual para `churn_predicted`: probabilidade de churn **≥ 0,5**. Na avaliação offline, o treino também explora limiares orientados a custo/lucro — ver métricas em `train.py` / MLflow.
 
-| Code | Scenario                                   |
-|------|--------------------------------------------|
-| 200  | Sucesso                                    |
-| 422  | Validation error (tipo de dados errado)    |
-| 429  | Rate limit excedido (10 req/30sec)        |
-| 503  | Modelo não carregado                       |
 
-**SLA & Performance**:
+| Code | Cenário                           |
+| ---- | --------------------------------- |
+| 200  | Sucesso                           |
+| 422  | Validação Pydantic                |
+| 429  | Rate limit (10 req / 30 s por IP) |
+| 503  | Modelo ou pipeline não carregado  |
 
-- **Latência p50**: ≤ 100ms ✅ (testado)
-- **Latência p99**: ≤ 200ms ✅ (testado)
-- **Uptime Target**: ≥ 99.5%
-- **Rate Limit**: 10 requisições / 30 segundos
-- **Error Rate**: ≤ 0.1%
 
-#### POST `/api/v1/predict_batch`
+**Request**: objeto JSON com chave `**records`**: lista de até **10.000** registros no mesmo formato de `PredictRequest`.
 
-**Request Body** — Batch prediction (array até 10.000):
-
-```json
-{
-  "customers": [
-    { "customer_id": "CUST_1", "contract_type": "...", ... },
-    { "customer_id": "CUST_2", "contract_type": "...", ... }
-  ]
-}
-```
-
-**Response (200 OK)**:
-
-```json
-{
-  "predictions": [
-    { "customer_id": "CUST_1", "churn_probability": 0.45, "risk_level": "LOW" },
-    { "customer_id": "CUST_2", "churn_probability": 0.82, "risk_level": "HIGH" }
-  ],
-  "statistics": {
-    "total_processed": 2,
-    "avg_probability": 0.635,
-    "risk_distribution": { "LOW": 1, "MEDIUM": 0, "HIGH": 1 }
-  }
-}
-```
-
-**Constraints**:
-- Máximo 10.000 registros por batch
-- Tempo processamento: ~3min para 100K (noturno)
-- Processamento paralelo com ThreadPoolExecutor
+**Response (200)** inclui `batch_id`, `predictions` (por item: `record_index`, `churn_probability`, `churn_predicted`), `model_version`, `total_records`, `processing_time_ms`.
 
 ### API Documentation
 
-| Ambiente | Swagger UI | ReDoc |
-|----------|-----------|-------|
-| **Produção** | https://api.pocsarcotech.com/docs | https://api.pocsarcotech.com/redoc |
-| **Local** | http://localhost:8000/docs | http://localhost:8000/redoc |
+
+| Ambiente     | Swagger UI                                                             | ReDoc                                                                    |
+| ------------ | ---------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| **Produção** | [https://api.pocsarcotech.com/docs](https://api.pocsarcotech.com/docs) | [https://api.pocsarcotech.com/redoc](https://api.pocsarcotech.com/redoc) |
+| **Local**    | [http://localhost:8000/docs](http://localhost:8000/docs)               | [http://localhost:8000/redoc](http://localhost:8000/redoc)               |
+
 
 ---
 
@@ -781,12 +642,7 @@ mlflow ui --host 0.0.0.0 --port 5000
 
 ### Logging Automático
 
-Cada run treina log:
-
-- **Params**: learning_rate, batch_size, epochs, dropout, weights
-- **Metrics**: train_loss, val_loss, train_f1, val_f1, val_roc_auc (cada epoch)
-- **Artifacts**: best_model.pth, confusion_matrix.png, feature_importance.json
-- **Tags**: dataset_version, sklearn_baseline_f1, team, experiment_phase
+Cada execução de `src/models/train.py` regista no MLflow hiperparâmetros, métricas agregadas de validação cruzada e de *hold-out*, modelo PyTorch, artefato `pipeline.pkl`, hash do *dataset* e etiquetas definidas no código. Não há registo métrico por *epoch* individual neste *script* — apenas o necessário para comparar *runs* e reproduzir artefatos.
 
 ### Comparação de Experimentos
 
@@ -807,49 +663,25 @@ best_recall = runs.sort_values("metrics.recall", ascending=False).iloc[0]
 
 ---
 
-## 📊 Governance & Model Card
+## Governança e Model Card
 
-### Model Card (AI Compliance)
-
-**Localização**: [docs/MODEL_CARD.md](docs/MODEL_CARD.md)
-
-**Conteúdo Obrigatório Incluído**:
-
-- ✅ **Descrição do Modelo**: Rede neural feedforward 4-layer + Random Forest TUNED (backup)
-- ✅ **Dataset**: Telecomunicações USA, 7043 clientes, 20 features + 1 target
-- ✅ **Performance Alcançada**: 
-  - MLP: **Recall=0.8467 ✅**, ROC-AUC=0.8506, PR-AUC=0.6648
-  - Random Forest TUNED: ROC-AUC=0.8389, F1=0.6478
-  - Logistic Regression: Recall=0.8020, ROC-AUC=0.8449
-  - MLP (Principal): ROC-AUC=0.8506, Recall=0.8467 (melhor performance)
-- ✅ **Limitations**: 
-  - Modelo treinado em 2026 Q1 com dados USA
-  - Degradação esperada após 3 meses sem retreino
-  - Não otimizado para clientes pré-pago (modelo usa dados pós-pago)
-- ✅ **Biases Identificados**:
-  - ⚠️ Desempenho varia por tipo de contrato (Month-to-month: F1 melhor)
-  - ⚠️ Performance menor para internet lenta (DSL vs Fiber Optic)
-  - ⚠️ Classe alvo desbalanceada (26.5% churn vs 73.5% não-churn)
-- ✅ **Recomendações**: 
-  - Retreinar a cada 90 dias ou se KL-div de features > 0.05
-  - Monitorar drift com KS-test semanal
-  - A/B test com threshold otimizado (0.45 vs 0.50 padrão)
-  - Considerar ensemble MLP + Random Forest para robustez
-- ✅ **Contact**: Data Science Team
+O **[MODEL_CARD.md](docs/MODEL_CARD.md)** descreve o modelo (MLP PyTorch), dados, desempenho de referência, limitações, vieses e recomendações. Para políticas de *drift* e retreino, utilize também o **[MONITORING_PLAN.md](docs/MONITORING_PLAN.md)**.
 
 ---
 
-## 📊 Monitoramento em produção
+## Monitoramento operacional
 
-Documento canônico: **[docs/MONITORING_PLAN.md](docs/MONITORING_PLAN.md)**.
+Referência: **[MONITORING_PLAN.md](docs/MONITORING_PLAN.md)**.
 
-| Camada | Ferramenta (planejado) | O que cobre |
-|--------|-------------------------|-------------|
-| API / infra | **Prometheus** + **Grafana** | Latência, erros HTTP, disponibilidade, recursos |
-| Modelo / experimentos | **MLflow** | Registry, runs de avaliação batch (PR-AUC, Recall, Expected Profit), retreinos |
-| Data drift | Jobs batch + estatística | Contínuas: **KS**; categóricas nominais (ex.: `Contract`): **Chi-quadrado** — ver justificativa no plano |
 
-Alertas, thresholds, playbook de resposta e retreino estão detalhados em `monitoring_plan.md`.
+| Camada              | Instrumentação sugerida | Escopo                                                                                                  |
+| ------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------- |
+| API / infra         | Prometheus + Grafana    | Requisições HTTP, latência, erros, recursos                                                             |
+| Experimentação      | MLflow                  | Registro de treinos, métricas, artefatos                                                                |
+| Qualidade dos dados | Procedimentos no plano  | Detecção de *drift* (ex.: KS em variáveis contínuas; testes adequados para categóricas como `Contract`) |
+
+
+Alertas, limiares e playbooks encontram-se no documento acima.
 
 ---
 
@@ -915,15 +747,15 @@ pytest tests/ -v  # Todos testes devem passar
 
 ## 📚 Documentação Técnica
 
-### Estrutura de Docs
+### Índice de documentos
 
-- **[ML_CANVAS.md](docs/ML_CANVAS.md)** ⭐ **COMECE AQUI**: Contexto completo de negócio, KPIs, SLOs, roadmap CRISP-DM
-- **[MODEL_CARD.md](docs/MODEL_CARD.md)**: Especificações técnicas do modelo, limitações, vieses identificados
-- **[VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md)**: Relatório de validação com métricas de performance
-- **[monitoring_plan.md](docs/MONITORING_PLAN.md)**: Plano de monitoramento — drift (KS vs Chi-quadrado), alertas, playbook; stack planejada **Prometheus + Grafana** (API/infra) + **MLflow** (runs de avaliação, Model Registry)
-- **[decisions.md](docs/DECISIONS.md)**: Decisões arquiteturais, experimentos realizados, lições aprendidas
-- **[conventions.md](docs/CONVENTIONS.md)**: Convenções de código, seeds, logging, commits (conforme CLAUDE.md)
-- **[IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md)**: Guia passo-a-passo de implementação
+- **[ML_CANVAS.md](docs/ML_CANVAS.md)** — Contexto de negócio, KPIs e roadmap CRISP-DM.
+- **[MODEL_CARD.md](docs/MODEL_CARD.md)** — Modelo, limitações e riscos conhecidos.
+- **[VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md)** — Relatório de validação e métricas.
+- **[MONITORING_PLAN.md](docs/MONITORING_PLAN.md)** — Plano de monitoramento (drift, alertas, observabilidade).
+- **[DECISIONS.md](docs/DECISIONS.md)** — Decisões de arquitetura e deploy.
+- **[CONVENTIONS.md](docs/CONVENTIONS.md)** — Convenções de código e repositório.
+- **[IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md)** — Guia de implementação.
 
 ### Especificações de Features
 
@@ -933,14 +765,9 @@ pytest tests/ -v  # Todos testes devem passar
 - **[specs/model-training.md](specs/model-training.md)**: Pipeline de treinamento, fluxo de configuração
 - **[specs/inference-api.md](specs/inference-api.md)**: Endpoints FastAPI, schemas Pydantic, rate limiting
 - **[specs/baseline-comparison.md](specs/baseline-comparison.md)**: Comparação de 5 baselines
-- **[specs/iac.md](specs/iac.md)**: Arquitetura Terraform, módulos AWS, variáveis
+- **[specs/iac.md](specs/iac.md)** — Terraform, módulos AWS.
 
-### Swagger & ReDoc
-
-| Ambiente | Swagger UI | ReDoc |
-|----------|-----------|-------|
-| **Produção** | https://api.pocsarcotech.com/docs | https://api.pocsarcotech.com/redoc |
-| **Local** | http://localhost:8000/docs | http://localhost:8000/redoc |
+Contratos HTTP (`Swagger` / `ReDoc`): mesma tabela na secção **API REST (FastAPI)** deste README.
 
 ---
 
@@ -948,55 +775,66 @@ pytest tests/ -v  # Todos testes devem passar
 
 ### Core ML & Data
 
-| Tecnologia       | Versão   | Propósito                            | Status |
-|------------------|----------|--------------------------------------|--------|
-| **Python**       | 3.12+    | Runtime                              | ✅ Instalado |
-| **PyTorch**      | 2.11.0   | Deep Learning (rede neural MLP)      | ✅ Instalado |
-| **Scikit-Learn** | 1.8.0    | 5 Baselines + pré-processamento      | ✅ Instalado |
-| **Pandas**       | 2.3.3    | Manipulação & validação de dados     | ✅ Instalado |
-| **NumPy**        | 2.4.4    | Computação numérica                  | ✅ Instalado |
-| **SciPy**        | 1.17.1   | Estatística (KS-test, distributions) | ✅ Instalado |
+
+| Tecnologia       | Versão | Propósito                            | Status      |
+| ---------------- | ------ | ------------------------------------ | ----------- |
+| **Python**       | 3.12+  | Runtime                              | ✅ Instalado |
+| **PyTorch**      | 2.11.0 | Deep Learning (rede neural MLP)      | ✅ Instalado |
+| **Scikit-Learn** | 1.8.0  | 5 Baselines + pré-processamento      | ✅ Instalado |
+| **Pandas**       | 2.3.3  | Manipulação & validação de dados     | ✅ Instalado |
+| **NumPy**        | 2.4.4  | Computação numérica                  | ✅ Instalado |
+| **SciPy**        | 1.17.1 | Estatística (KS-test, distributions) | ✅ Instalado |
+
 
 ### API & Backend
 
-| Tecnologia       | Versão   | Propósito                            | Status |
-|------------------|----------|--------------------------------------|--------|
-| **FastAPI**      | 0.135.3  | API REST production-ready            | ✅ Instalado |
-| **Uvicorn**      | 0.44.0   | ASGI server                          | ✅ Instalado |
-| **Pydantic**     | 2.13.0   | Validação & serialização (schemas)   | ✅ Instalado |
+
+| Tecnologia   | Versão  | Propósito                          | Status      |
+| ------------ | ------- | ---------------------------------- | ----------- |
+| **FastAPI**  | 0.135.3 | Framework HTTP assíncrono          | ✅ Instalado |
+| **Uvicorn**  | 0.44.0  | ASGI server                        | ✅ Instalado |
+| **Pydantic** | 2.13.0  | Validação & serialização (schemas) | ✅ Instalado |
+
 
 ### Experiment & Model Management
 
-| Tecnologia       | Versão   | Propósito                            | Status |
-|------------------|----------|--------------------------------------|--------|
-| **MLflow**       | 3.11.1   | Tracking, Model Registry, deployment | ✅ Instalado |
-| **Structlog**    | 25.5.0   | Logging estruturado (JSON)           | ✅ Instalado |
+
+| Tecnologia    | Versão | Propósito                            | Status      |
+| ------------- | ------ | ------------------------------------ | ----------- |
+| **MLflow**    | 3.11.1 | Tracking, Model Registry, deployment | ✅ Instalado |
+| **Structlog** | 25.5.0 | Logging estruturado (JSON)           | ✅ Instalado |
+
 
 ### Testes & Qualidade de Código
 
-| Tecnologia       | Versão   | Propósito                            | Status |
-|------------------|----------|--------------------------------------|--------|
-| **Pytest**       | 9.0.3    | 64 testes automatizados (82%+ cov)  | ✅ Instalado |
-| **Pytest-cov**   | 7.0      | Coverage reporting                   | ✅ Instalado |
-| **Pytest-asyncio** | 0.24.0 | Async test support                   | ✅ Instalado |
-| **Ruff**         | 0.15.10  | Linting ultrafast (ruff check)      | ✅ Instalado |
-| **Mypy**         | 1.20.1   | Type checking estático               | ✅ Instalado |
+
+| Tecnologia         | Versão  | Propósito                      | Status      |
+| ------------------ | ------- | ------------------------------ | ----------- |
+| **Pytest**         | 9.0.3   | Framework de testes            | ✅ Instalado |
+| **Pytest-cov**     | 7.0     | Coverage reporting             | ✅ Instalado |
+| **Pytest-asyncio** | 0.24.0  | Async test support             | ✅ Instalado |
+| **Ruff**           | 0.15.10 | Linting ultrafast (ruff check) | ✅ Instalado |
+| **Mypy**           | 1.20.1  | Type checking estático         | ✅ Instalado |
+
 
 ### Task Automation & Notebooks
 
-| Tecnologia       | Versão   | Propósito                            | Status |
-|------------------|----------|--------------------------------------|--------|
-| **Taskipy**      | 1.14.1   | Task runner (task train, task test)  | ✅ Instalado |
-| **Jupyter**      | 1.1.1    | Notebooks interativos (11 notebooks) | ✅ Instalado |
-| **IPython**      | 9.12.0   | IPython kernel para notebooks        | ✅ Instalado |
-| **IPykernel**    | 7.2.0    | Kernel para Jupyter                  | ✅ Instalado |
+
+| Tecnologia    | Versão | Propósito                            | Status      |
+| ------------- | ------ | ------------------------------------ | ----------- |
+| **Taskipy**   | 1.14.1 | Task runner (task train, task test)  | ✅ Instalado |
+| **Jupyter**   | 1.1.1  | Notebooks interativos (11 notebooks) | ✅ Instalado |
+| **IPython**   | 9.12.0 | IPython kernel para notebooks        | ✅ Instalado |
+| **IPykernel** | 7.2.0  | Kernel para Jupyter                  | ✅ Instalado |
+
 
 ### DevOps & Infrastructure
 
-| Tecnologia       | Versão   | Propósito                            | Status |
-|------------------|----------|--------------------------------------|--------|
-| **Docker**       | 24.0+    | Containerização (Dockerfile)         | ⚠️ Opcional |
-| **Terraform**    | 1.5+     | Infraestrutura como Código (AWS IaC) | ⚠️ Opcional |
+
+| Tecnologia         | Versão | Propósito                            | Status      |
+| ------------------ | ------ | ------------------------------------ | ----------- |
+| **Docker**         | 24.0+  | Containerização (Dockerfile)         | ⚠️ Opcional |
+| **Terraform**      | 1.5+   | Infraestrutura como Código (AWS IaC) | ⚠️ Opcional |
 | **GitHub Actions** | v4+    | CI/CD pipeline (.github/workflows/)  | ✅ Integrado |
 
 
@@ -1019,7 +857,7 @@ MIT License - Veja [LICENSE](LICENSE) para detalhes.
 **LinkedIn**: [Emerson Costa](https://www.linkedin.com/in/emerson-alvesc/)
 
 **Autor**: Bruno Leonardo Silva Tardelli  
-**Email**: [b.tardelli@hotmail.com](mailto:b.tardelli@hotmail.com])   
+**Email**: [b.tardelli@hotmail.com](mailto:b.tardelli@hotmail.com])  
 **LinkedIn**: [Bruno Tardelli](https://www.linkedin.com/in/brunotardelli/)
 
 **Autor**: Matheus Macan Munhoz  
@@ -1065,13 +903,14 @@ Internet
 
 **URLs Deployadas:**
 
-| Serviço | URL |
-|---------|-----|
-| API FastAPI | https://api.pocsarcotech.com |
-| MLflow UI | https://mlflow.pocsarcotech.com/mlflow/ |
-| API Docs | https://api.pocsarcotech.com/docs |
-| API (direto EC2) | http://100.24.64.84:8080 |
-| MLflow (direto EC2) | http://100.24.64.84:5000 |
+
+| Serviço             | URL                                                                                |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| API FastAPI         | [https://api.pocsarcotech.com](https://api.pocsarcotech.com)                       |
+| MLflow UI           | [https://mlflow.pocsarcotech.com/mlflow/](https://mlflow.pocsarcotech.com/mlflow/) |
+| API Docs            | [https://api.pocsarcotech.com/docs](https://api.pocsarcotech.com/docs)             |
+
+
 
 ### Deploy (Terraform)
 
@@ -1084,6 +923,7 @@ terraform destroy        # Destrói recursos
 ```
 
 **Modules**:
+
 - `modules/compute/` — EC2 com user_data Docker
 - `modules/networking/` — Security Group
 - `modules/iam/` — Role + Profile + S3 policy
@@ -1093,21 +933,11 @@ terraform destroy        # Destrói recursos
 
 ---
 
-**Status**: ✅ **Implementação Completa**
+### Estado do projeto
 
-- ✅ Pipeline ML operacional (Recall=0.8467 ≥ 0.75)
-- ✅ API FastAPI com 51 testes integração
-- ✅ 13 testes unitários
-- ✅ Cobertura 82%+
-- ✅ Linting (Ruff) 0 errors
-- ✅ MLflow tracking integrado
-- ✅ Terraform IaC pronto para deploy
-- ✅ CI/CD GitHub Actions
+Entregáveis principais desta fase: pipeline de treino reprodutível (MLP + MLflow), artefatos em `models/`, API FastAPI com testes de integração, *lint* em CI (Ruff), infraestrutura descrita em `iac/` e *pipelines* em `.github/workflows/` (`pr.yml`, `cd.yml`, `deploy.yml`).
 
-**Última atualização**: Maio 2026 ✅  
-**Fase FIAP**: Desafio 1 - Rede neural para predição de Churn ✅  
-
----
+**Última atualização do README:** maio de 2026 · **Fase FIAP:** Tech Challenge — rede neural para predição de churn.
 
 ## 📚 Referências & Recursos
 
