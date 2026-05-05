@@ -4,7 +4,7 @@
   "activation": "relu",
   "dropout": 0.4,
   "hidden_layers": 2,
-  "hidden_dim": 32,
+  "hidden_dim": 64,
   "epochs": 100,
   "learning_rate": 0.001,
   "early_stopping_patience": 5,
