@@ -78,7 +78,6 @@ services:
         --backend-store-uri sqlite:////mlflow/mlflow.db
         --serve-artifacts
         --artifacts-destination $ARTIFACT_URI
-        --static-prefix /mlflow
     networks:
       - app-net
 
@@ -91,7 +90,7 @@ services:
     ports:
       - "${flask_port}:8080"
     environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:5000/mlflow
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
       - MLFLOW_EXPERIMENT_NAME=churn-mlp
     depends_on:
       - mlflow
