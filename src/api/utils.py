@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse
 from src.features.pipeline import (
     load_pipeline,  # noqa: F401 — re-exported para callers da API
 )
-from src.models.mlp import MLPChurnModel
+from src.models.mlp import ChurnMLP
 
 log = structlog.get_logger()
 
@@ -84,7 +84,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             raise
 
 
-def load_model(model_path: str | None = None, config_path: str | None = None) -> MLPChurnModel:
+def load_model(model_path: str | None = None, config_path: str | None = None) -> ChurnMLP:
     """Carregar modelo MLP com arquitetura definida pelo config JSON."""
     try:
         project_root = Path(__file__).parent.parent.parent
@@ -96,15 +96,14 @@ def load_model(model_path: str | None = None, config_path: str | None = None) ->
         with open(config_path) as f:
             config = json.load(f)
 
-        model = MLPChurnModel(
+        model = ChurnMLP(
             input_dim=config.get("input_dim", 30),
-            hidden_dim=config.get("hidden_dim", 32),
-            hidden_layers=config.get("hidden_layers", 2),
-            dropout=config.get("dropout", 0.4),
+            hidden=config.get("hidden_dims", [64, 32]),
+            dropout=config.get("dropout", [0.3, 0.2]),
         )
 
         state_dict = torch.load(model_path, weights_only=True)
-        model.load_state_dict(state_dict, strict=False)
+        model.load_state_dict(state_dict)
         model.eval()
 
         log.info("model.loaded", path=model_path, config=config_path)

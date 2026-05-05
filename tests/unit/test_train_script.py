@@ -12,7 +12,6 @@ import torch
 
 from src.models.train import (
     MLPChurnModel,
-    load_config,
     load_processed_data,
     validate_performance,
 )
@@ -77,10 +76,11 @@ class TestConfigHandling:
         config_path = PROJECT_ROOT / "models" / "mlp_config.json"
 
         if config_path.exists():
-            config = load_config(config_path)
+            with open(config_path) as f:
+                config = json.load(f)
             assert isinstance(config, dict)
             assert "batch_size" in config
-            assert "hidden_dim" in config
+            assert "hidden_dims" in config
             assert "epochs" in config
 
     def test_config_has_required_keys(self):
@@ -95,10 +95,8 @@ class TestConfigHandling:
             required_keys = [
                 "input_dim",
                 "batch_size",
-                "hidden_dim",
-                "hidden_layers",
+                "hidden_dims",
                 "dropout",
-                "activation",
                 "learning_rate",
                 "epochs",
                 "early_stopping_patience",

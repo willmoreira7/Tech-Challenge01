@@ -1,13 +1,12 @@
 {
   "input_dim": 30,
-  "batch_size": 64,
-  "activation": "relu",
-  "dropout": 0.4,
-  "hidden_layers": 2,
-  "hidden_dim": 64,
+  "hidden_dims": [64, 32],
+  "dropout": [0.3, 0.2],
+  "batch_size": 32,
   "epochs": 100,
   "learning_rate": 0.001,
-  "early_stopping_patience": 5,
+  "weight_decay": 0.0001,
+  "early_stopping_patience": 10,
   "metrics": {
     "auc_roc": 0.8461972207534021,
     "pr_auc": 0.6591510772153965,
