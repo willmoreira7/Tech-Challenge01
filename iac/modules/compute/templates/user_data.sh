@@ -79,8 +79,6 @@ services:
         --serve-artifacts
         --artifacts-destination $ARTIFACT_URI
         --static-prefix /mlflow
-        --allowed-hosts "*"
-        --cors-allowed-origins "*"
     networks:
       - app-net
 
