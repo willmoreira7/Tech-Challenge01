@@ -62,7 +62,7 @@ version: "3.9"
 
 services:
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.19.0
+    image: ghcr.io/mlflow/mlflow:v3.11.1
     container_name: mlflow
     restart: unless-stopped
     ports:
