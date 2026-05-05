@@ -50,7 +50,9 @@
       "Bash(aws ec2 describe-security-groups *)",
       "Bash(nc -zv -w 5 100.24.64.84 22)",
       "Bash(echo \"Exit: $?\")",
-      "Bash(aws ec2 describe-network-acls *)"
+      "Bash(aws ec2 describe-network-acls *)",
+      "Bash(uv sync *)",
+      "Bash(uv run *)"
     ]
   }
 }
