@@ -57,12 +57,20 @@ else
   ARTIFACT_URI="/mlflow/artifacts"
 fi
 
+# Imagem customizada: adiciona boto3 ao mlflow oficial (necessário para S3)
+cat > "$PROJECT_DIR/Dockerfile.mlflow" <<'MLFLOW_DOCKERFILE'
+FROM ghcr.io/mlflow/mlflow:v3.11.1
+RUN pip install boto3 -q
+MLFLOW_DOCKERFILE
+
+docker build -t mlflow-custom:latest -f "$PROJECT_DIR/Dockerfile.mlflow" "$PROJECT_DIR/"
+
 cat > "$PROJECT_DIR/docker-compose.yml" <<COMPOSE
 version: "3.9"
 
 services:
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v3.11.1
+    image: mlflow-custom:latest
     container_name: mlflow
     restart: unless-stopped
     ports:
