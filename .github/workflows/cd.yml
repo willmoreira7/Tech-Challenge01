@@ -173,7 +173,7 @@ jobs:
 
           curl -sf http://localhost:8080/health | python -c "
           import sys, json; d = json.load(sys.stdin)
-          assert d['status'] == 'ok', f'status inesperado: {d}'
+          assert d['status'] == 'healthy', f'status inesperado: {d}'
           print('GET /health ✅', d['status'])
           "
 
