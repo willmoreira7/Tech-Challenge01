@@ -144,7 +144,9 @@ Use Case: Contato CRM em tempo real, portal de cliente
 1. **Real-time API**: Critical path → Contato CRM em < 200ms
 2. **Batch**: Scalability → 70M base em paralelo noturno
 3. **Hybrid**: Otimiza custo vs SLA (GPU + autoscaling)
-4. **Monitoring**: Data drift (KS-test), Model drift (AUROC queda), Retraining semanal
+4. **Monitoring**: operação (Prometheus + Grafana, planejado), modelo/avaliação batch (MLflow + [`docs/monitoring_plan.md`](docs/monitoring_plan.md)); drift em contínuas (KS) e categóricas nominais (Chi-quadrado).
+
+Detalhes de deploy em evolução: [`docs/decisions.md`](docs/decisions.md) (Etapa 4).
 
 ---
 
@@ -159,7 +161,7 @@ Tech-Challenge01/
 │   │   ├── loader.py             # Carregamento e validação
 │   │   └── __init__.py
 │   ├── features/                 # Pipeline de features
-│   │   ├── pipeline.py           # FeatureEngineer com sklearn
+│   │   ├── pipeline.py           # engineer_features + sklearn ColumnTransformer
 │   │   └── __init__.py
 │   ├── models/                   # Módulo de modelos
 │   │   ├── train.py              # Loop de treinamento MLP + MLflow
@@ -183,9 +185,10 @@ Tech-Challenge01/
 │
 ├── notebooks/                    # Análise exploratória & Baselines
 │   ├── eda.ipynb                 # EDA completa
-│   ├── baseline_comparison.ipynb  # Comparação de 5 baselines
+│   ├── feature_engineering.ipynb # Validação do pipeline de features (src/features/pipeline.py)
+│   ├── baseline_comparison.ipynb  # Comparação de baselines
 │   ├── mlp_training.ipynb        # Training logs & ablations
-│   └── ... (10+ notebooks)
+│   └── ... (demais notebooks)
 │
 ├── tests/                        # Testes automatizados (64 testes total)
 │   ├── conftest.py               # Fixtures pytest
@@ -257,19 +260,21 @@ cd Tech-Challenge01
 ### 2. Configurar Ambiente Python
 
 ```bash
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# ou
-venv\Scripts\activate  # Windows
+python -m venv .venv   # ou: python -m venv venv
+# Linux/Mac:
+source .venv/bin/activate
+# Windows (PowerShell):
+.venv\Scripts\Activate.ps1
 ```
 
 ### 3. Instalar Dependências
 
 ```bash
-# Instalar com dependências de desenvolvimento
-pip install -e ".[dev]"
+pip install -e .
+# Ferramentas extras (notebooks, pytest-cov): ver [dependency-groups] em pyproject.toml
+pip install jupyter pytest-cov pytest-asyncio
 
-# Ou usar requirements.txt pré-compilado
+# Ou usar requirements.txt
 pip install -r requirements.txt
 ```
 
@@ -331,6 +336,9 @@ task check
 # EDA completa
 jupyter notebook notebooks/eda.ipynb
 
+# Feature engineering + pipeline sklearn (mesmo código que src/features/pipeline.py)
+jupyter notebook notebooks/feature_engineering.ipynb
+
 # Comparação de baselines
 jupyter notebook notebooks/baseline_comparison.ipynb
 
@@ -349,13 +357,17 @@ jupyter notebook notebooks/mlp_training.ipynb
 - Estratificação de classes (churn: 27%, não-churn: 73%)
 - Divisão treino (60%) / validação (20%) / teste (20%) com StratifiedKFold
 
-### Etapa 2: Feature Engineering (com Scikit-Learn)
+### Etapa 2: Feature Engineering (Scikit-Learn)
 
-- **Normalização**: StandardScaler com mean=0, std=1 (fitted apenas no treino)
-- **Encoding**: OneHotEncoder para categóricas (internet_type, contract), LabelEncoder para ordinais
-- **Transformações**: log-transform em charges, ratios (total_charges/tenure)
-- **Seleção**: SelectKBest com mutual_info_classif (mantém top 50 features)
-- **Pipelines Sklearn**: Reproducibilidade e evita data leakage
+Implementação reprodutível em [`src/features/pipeline.py`](src/features/pipeline.py) + [`specs/feature-pipeline.md`](specs/feature-pipeline.md):
+
+1. **`engineer_features`** (via `FunctionTransformer`): cria `log_tenure = log(tenure+1)`, `is_fiber`, `n_add_on_services` (contagem de add-ons); remove colunas de baixo sinal (`gender`, `PhoneService`, `MultipleLines`, `TotalCharges`, `StreamingTV`, `StreamingMovies`).
+2. **Numéricas**: `SimpleImputer(median)` + `StandardScaler` — `log_tenure`, `MonthlyCharges`, `SeniorCitizen`, `n_add_on_services`.
+3. **Binárias**: `OrdinalEncoder` — `Partner`, `Dependents`, `PaperlessBilling`, `is_fiber`.
+4. **Nominais**: `OneHotEncoder(drop="if_binary")` — `InternetService`, serviços online, `Contract`, `PaymentMethod`.
+5. **Saída**: ~**30** colunas numéricas codificadas (antes ~40 sem engenharia deliberada).
+
+Notebook de validação: [`notebooks/feature_engineering.ipynb`](notebooks/feature_engineering.ipynb).
 
 ### Etapa 3: Modelagem - Baseline vs Deep Learning
 
@@ -401,7 +413,7 @@ Baselines avaliados com StratifiedKFold k=5 (média ± std). MLP avaliado em hol
 
 ```
 ARQUITETURA:
-Input Layer (50 features)
+Input Layer (~30 features após pipeline atual)
     ↓
 Dense(256) + BatchNorm(256) + ReLU + Dropout(0.3)
     ↓
@@ -469,11 +481,9 @@ pytest tests/unit/ -v
 - ✅ Sem duplicatas após limpeza
 
 **Arquivo: `tests/unit/test_feature_pipeline.py`**
-- ✅ Normalização com StandardScaler
-- ✅ Encoding de categóricas (OneHot, Label)
-- ✅ Feature selection com SelectKBest
-- ✅ Evita data leakage (fit apenas em treino)
-- ✅ Ranges esperados pós-normalização (-3 a +3)
+- ✅ `engineer_features`: colunas esperadas, ranges de `log_tenure` e `n_add_on_services`
+- ✅ Pipeline completo: shape, sem NaN, determinístico
+- ✅ `OneHotEncoder` com `handle_unknown` em categoria nova
 
 **Arquivo: `tests/unit/test_train_script.py`**
 - ✅ Carregamento de config.yaml
@@ -744,72 +754,17 @@ print(f"Best model: {best_run['run_id']} com F1={best_run['metrics.val_f1']}")
 
 ---
 
-## 📊 Plano de Monitoramento em Produção
+## 📊 Monitoramento em produção
 
-### 1. Data Drift Detection
+Documento canônico: **[docs/monitoring_plan.md](docs/monitoring_plan.md)**.
 
-```python
-# Monitoramento semanal da distribuição de features
-from scipy.stats import ks_2samp
+| Camada | Ferramenta (planejado) | O que cobre |
+|--------|-------------------------|-------------|
+| API / infra | **Prometheus** + **Grafana** | Latência, erros HTTP, disponibilidade, recursos |
+| Modelo / experimentos | **MLflow** | Registry, runs de avaliação batch (PR-AUC, Recall, Expected Profit), retreinos |
+| Data drift | Jobs batch + estatística | Contínuas: **KS**; categóricas nominais (ex.: `Contract`): **Chi-quadrado** — ver justificativa no plano |
 
-# Se KL-divergence > threshold → alerta
-k_stat, p_value = ks_2samp(test_feature, prod_feature)
-if p_value < 0.05:  # Mudança significativa detectada
-    send_alert("DRIFT_DETECTED", feature_name)
-    log_to_datadog()
-```
-
-**Métricas Monitoradas**:
-
-- Distribuição de tenure, charges, contrato_type
-- Proporção de clientes por internet_type
-- Taxa média de churn observado vs predito
-
-### 2. Model Performance Monitoring
-
-```python
-# Validação semanal de métricas em produção
-if production_auroc < 0.80:  # Meta: ≥0.82
-    severity = "CRITICAL"
-    action = "Trigger automated retraining"
-elif production_recall < 0.70:  # Meta: ≥0.75
-    severity = "CRITICAL"
-    action = "Increase threshold conservatism"
-elif production_pr_auc < 0.60:  # Meta: ≥0.65
-    severity = "WARNING"
-    action = "Monitor closely"
-```
-
-### 3. Alertas Automáticos
-
-
-| Métrica         | Threshold     | Ação                   | Severidade | Impacto                |
-| --------------- | ------------- | ---------------------- | ---------- | ---------------------- |
-| AUROC (Prod)    | < 0.80 por 3d | Auto-retrain           | CRITICAL   | Perda R$ 100K/dia      |
-| Recall (Prod)   | < 0.70 por 2d | Aumentar conservatismo | CRITICAL   | FN alto (CLV perdido)  |
-| Data Drift (KS) | KS > 0.20     | Investigar mudanças    | WARNING    | Distribuição mudou     |
-| API Latência    | p99 > 200ms   | Scale up / Debug       | WARNING    | CRM responde lento     |
-| API Uptime      | < 99.5% em 7d | Incident review        | WARNING    | Campanhas pausadas     |
-| Expected Profit | < R$ 1.5M/mês | Strategy review        | CRITICAL   | Abaixo de ROI esperado |
-
-
-### 4. Playbook de Resposta
-
-```
-CENÁRIO: F1-Score cai de 0.85 → 0.79 em 1 semana
-
-1. Detectar (Automated Alert) ✅
-2. Investigar:
-   - Data Drift? (KS test em últimas 1000 amostras)
-   - Class imbalance mudou? (Novo tipo de contrato emergiu?)
-   - Feature corruption? (NaNs inesperados?)
-3. Remediate:
-   - Rodar retraining automático com últimos 90 dias
-   - A/B test modelo novo vs stable em 10% tráfego
-   - Se F1 > 0.82: promover para prod
-   - Se F1 < 0.82: investigar mais + rollback
-4. Post-mortem: Document no Slack #ml-incidents
-```
+Alertas, thresholds, playbook de resposta e retreino estão detalhados em `monitoring_plan.md`.
 
 ---
 
@@ -880,7 +835,7 @@ pytest tests/ -v  # Todos testes devem passar
 - **[ML_CANVAS.md](docs/ML_CANVAS.md)** ⭐ **COMECE AQUI**: Contexto completo de negócio, KPIs, SLOs, roadmap CRISP-DM
 - **[MODEL_CARD.md](docs/MODEL_CARD.md)**: Especificações técnicas do modelo, limitações, vieses identificados
 - **[VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md)**: Relatório de validação com métricas de performance
-- **[monitoring_plan.md](docs/monitoring_plan.md)**: Plano de monitoramento (drift detection, alertas, playbook)
+- **[monitoring_plan.md](docs/monitoring_plan.md)**: Plano de monitoramento — drift (KS vs Chi-quadrado), alertas, playbook; stack planejada **Prometheus + Grafana** (API/infra) + **MLflow** (runs de avaliação, Model Registry)
 - **[decisions.md](docs/decisions.md)**: Decisões arquiteturais, experimentos realizados, lições aprendidas
 - **[conventions.md](docs/conventions.md)**: Convenções de código, seeds, logging, commits (conforme CLAUDE.md)
 - **[IMPLEMENTATION_GUIDE.md](docs/IMPLEMENTATION_GUIDE.md)**: Guia passo-a-passo de implementação
