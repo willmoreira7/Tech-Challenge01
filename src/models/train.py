@@ -294,11 +294,23 @@ def train(config_path: Path | None = None, run_name: str = "mlp_train") -> str:
 
         run_id = run.info.run_id
 
-    # Registra no Model Registry apenas se recall atingiu o target
+    # Registra e promove para Production se recall atingiu o target e tracking é remoto
     model_name = os.getenv("MLFLOW_MODEL_NAME", "churn-mlp")
-    if recall_ok and mlflow.get_tracking_uri() not in ("./mlruns", "mlruns"):
+    tracking_uri = mlflow.get_tracking_uri()
+    is_remote = tracking_uri.startswith("http://") or tracking_uri.startswith("https://")
+    log.info("mlflow.tracking", uri=tracking_uri, is_remote=is_remote, recall_ok=recall_ok)
+    if recall_ok and is_remote:
         mv = mlflow.register_model(f"runs:/{run_id}/model", model_name)
-        log.info("mlflow.model_registered", name=model_name, version=mv.version)
+        client = mlflow.MlflowClient()
+        client.transition_model_version_stage(
+            name=model_name,
+            version=mv.version,
+            stage="Production",
+            archive_existing_versions=True,
+        )
+        log.info("mlflow.model_promoted", name=model_name, version=mv.version, stage="Production")
+    elif recall_ok and not is_remote:
+        log.info("mlflow.registry_skipped", reason="tracking local — set MLFLOW_TRACKING_URI para servidor remoto")
 
     log.info("mlflow.run_logged", run_id=run_id, experiment=experiment,
              recall_ok=recall_ok, recall=round(test_metrics["recall"], 4))

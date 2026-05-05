@@ -25,7 +25,8 @@
       "Bash(asdf list *)",
       "Bash(asdf set *)",
       "Bash(pip install *)",
-      "Bash(ruff check *)"
+      "Bash(ruff check *)",
+      "Bash(gh pr *)"
     ]
   }
 }
