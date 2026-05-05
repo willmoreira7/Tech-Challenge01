@@ -289,8 +289,15 @@ def train(config_path: Path | None = None, run_name: str = "mlp_train") -> str:
 
         mlflow.log_artifact(str(model_path))
         mlflow.log_artifact(str(pipeline_path))
+        mlflow.set_tag("release_tag", run_name)
 
         run_id = run.info.run_id
+
+    # Registra no Model Registry apenas se recall atingiu o target
+    model_name = os.getenv("MLFLOW_MODEL_NAME", "churn-mlp")
+    if recall_ok and mlflow.get_tracking_uri() != "./mlruns":
+        mv = mlflow.register_model(f"runs:/{run_id}/mlp_best.pt", model_name)
+        log.info("mlflow.model_registered", name=model_name, version=mv.version)
 
     log.info("mlflow.run_logged", run_id=run_id, experiment=experiment,
              recall_ok=recall_ok, recall=round(test_metrics["recall"], 4))

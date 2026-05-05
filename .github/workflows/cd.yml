@@ -59,7 +59,7 @@ jobs:
       - name: Treinar e registrar RC
         env:
           PYTHONPATH: .
-          MLFLOW_TRACKING_URI: ./mlruns
+          MLFLOW_TRACKING_URI: ${{ secrets.MLFLOW_TRACKING_URI }}
           MLFLOW_EXPERIMENT_NAME: churn-mlp
           MLFLOW_RUN_NAME: ${{ github.event.release.tag_name }}
         run: uv run python src/models/train.py --run-name "$MLFLOW_RUN_NAME"
