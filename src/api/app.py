@@ -20,12 +20,10 @@ from src.api.schemas import (
 from src.api.utils import LoggingMiddleware, RateLimitMiddleware, get_lifespan
 from src.config import configure_logging
 
-# Configurar logging estruturado
 configure_logging()
 
-# Configurar middlewares
+
 def get_middlewares(enable_rate_limit: bool = True) -> list:
-    """Retornar lista de middlewares."""
     middlewares = [
         Middleware(LoggingMiddleware),
         Middleware(RateLimitMiddleware, max_requests=10, window_seconds=30, enabled=enable_rate_limit),
@@ -49,7 +47,6 @@ def create_app(enable_rate_limit: bool = True) -> FastAPI:
         lifespan=get_lifespan(),
     )
 
-    # Rotas
     @app.get("/", response_model=RootResponse)
     async def root():
         """Rota raiz com informações da API."""
@@ -73,5 +70,4 @@ def create_app(enable_rate_limit: bool = True) -> FastAPI:
     return app
 
 
-# Criar app global
 app = create_app()

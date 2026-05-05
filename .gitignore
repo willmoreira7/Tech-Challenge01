@@ -275,6 +275,8 @@ azure-config.json
 # Terraform
 .terraform/
 .terraform.lock.hcl
+tfplan
+*.tfplan
 
 # =====================================================
 # 🔑 SENSITIVE DATA

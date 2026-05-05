@@ -1,486 +1,282 @@
-"""
-Model training script for churn prediction MLP.
-
-Treina modelo MLP com hiperparametros otimizados do mlp_config.json.
-Salva artefatos (modelo, pipeline, config) para uso pela API.
-Registra experimento no MLflow para rastreabilidade.
-"""
-
-import json
-import pickle
+"""Treina ChurnMLP com StratifiedKFold(5) e registra experimento no MLflow."""
+import argparse
+import os
 import sys
 from pathlib import Path
-from typing import Any
 
-import joblib
 import mlflow
-import mlflow.pytorch
 import numpy as np
-import pandas as pd
 import structlog
 import torch
 import torch.nn as nn
-import torch.optim as optim
+from dotenv import load_dotenv
 from sklearn.metrics import (
-    auc,
-    confusion_matrix,
+    accuracy_score,
+    average_precision_score,
     f1_score,
-    precision_recall_curve,
     precision_score,
     recall_score,
     roc_auc_score,
 )
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold, train_test_split
 from torch.utils.data import DataLoader, TensorDataset
 
-# Setup
+from src.config import load_config
+from src.data.loader import load_raw
+from src.features.pipeline import (
+    build_pipeline,
+    fit_transform,
+    save_pipeline,
+    transform,
+)
+from src.models.mlp import ChurnMLP
+
+load_dotenv()
+
 RANDOM_SEED = 42
-np.random.seed(RANDOM_SEED)
-torch.manual_seed(RANDOM_SEED)
-
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-DATA_DIR = PROJECT_ROOT / "data" / "processed"
-MODELS_DIR = PROJECT_ROOT / "models"
-CONFIG_FILE = MODELS_DIR / "mlp_config.json"
+POS_WEIGHT = 2.7683
+TEST_SIZE = 0.2
+N_FOLDS = 5
+MODELS_DIR = Path("models")
+RECALL_TARGET = 0.75
 
 log = structlog.get_logger()
 
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+def _seed_everything(seed: int) -> None:
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
 
 
-# ============================================================================
-# MODEL DEFINITION
-# ============================================================================
+def _make_loader(X: np.ndarray, y: np.ndarray, batch_size: int, *, shuffle: bool) -> DataLoader:
+    Xt = torch.tensor(X, dtype=torch.float32)
+    yt = torch.tensor(y, dtype=torch.float32).unsqueeze(1)
+    return DataLoader(TensorDataset(Xt, yt), batch_size=batch_size, shuffle=shuffle)
 
 
-class MLPChurnModel(nn.Module):
-    """MLP model for churn prediction."""
-
-    def __init__(
-        self,
-        input_dim: int,
-        hidden_layers: int = 2,
-        hidden_dim: int = 64,
-        dropout: float = 0.3,
-        activation: str = "relu",
-    ):
-        super().__init__()
-
-        self.net = nn.ModuleList()
-        self.batch_norms = nn.ModuleList()
-        self.dropouts = nn.ModuleList()
-
-        if activation == "relu":
-            self.activation = nn.ReLU()
-        elif activation == "tanh":
-            self.activation = nn.Tanh()
-        else:
-            self.activation = nn.ELU()
-
-        layer_dims = [input_dim]
-        if hidden_layers == 1:
-            layer_dims.extend([hidden_dim, 1])
-        elif hidden_layers == 2:
-            layer_dims.extend([hidden_dim, hidden_dim // 2, 1])
-        elif hidden_layers == 3:
-            layer_dims.extend([hidden_dim, hidden_dim // 2, hidden_dim // 4, 1])
-
-        for i in range(len(layer_dims) - 1):
-            self.net.append(nn.Linear(layer_dims[i], layer_dims[i + 1]))
-            if i < len(layer_dims) - 2:
-                self.batch_norms.append(nn.BatchNorm1d(layer_dims[i + 1]))
-                self.dropouts.append(nn.Dropout(dropout))
-
-    def forward(self, x):
-        for i, layer in enumerate(self.net[:-1]):
-            x = layer(x)
-            x = self.batch_norms[i](x)
-            x = self.activation(x)
-            x = self.dropouts[i](x)
-        x = self.net[-1](x)
-        return x
+def _best_threshold(probs: np.ndarray, y_true: np.ndarray) -> tuple[float, float]:
+    """Maximiza Expected Profit = TP×1140 − FP×60 − FN×1200."""
+    best_profit, best_t = -np.inf, 0.5
+    for t in np.arange(0.05, 0.95, 0.01):
+        preds = (probs >= t).astype(int)
+        tp = int(((preds == 1) & (y_true == 1)).sum())
+        fp = int(((preds == 1) & (y_true == 0)).sum())
+        fn = int(((preds == 0) & (y_true == 1)).sum())
+        profit = tp * 1140 - fp * 60 - fn * 1200
+        if profit > best_profit:
+            best_profit, best_t = profit, t
+    return float(best_t), float(best_profit)
 
 
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
+def _eval_metrics(probs: np.ndarray, y_true: np.ndarray) -> dict:
+    threshold, profit = _best_threshold(probs, y_true)
+    preds = (probs >= threshold).astype(int)
+    return {
+        "roc_auc": float(roc_auc_score(y_true, probs)),
+        "pr_auc": float(average_precision_score(y_true, probs)),
+        "recall": float(recall_score(y_true, preds)),
+        "precision": float(precision_score(y_true, preds, zero_division=0)),
+        "f1": float(f1_score(y_true, preds, zero_division=0)),
+        "accuracy": float(accuracy_score(y_true, preds)),
+        "best_threshold": threshold,
+        "expected_profit": profit,
+    }
 
 
-def load_config(config_path: Path) -> dict[str, Any]:
-    """Load configuration from mlp_config.json."""
-    if not config_path.exists():
-        log.error("config_file_not_found", path=str(config_path))
-        sys.exit(1)
-
-    with open(config_path) as f:
-        config = json.load(f)
-
-    log.info("config_loaded", path=str(config_path))
-    return config
-
-
-def load_processed_data(data_path: Path) -> pd.DataFrame:
-    """Load processed dataset."""
-    if not data_path.exists():
-        log.error("dataset_not_found", path=str(data_path))
-        sys.exit(1)
-
-    df = pd.read_csv(data_path)
-    log.info("dataset_loaded", shape=df.shape, columns=len(df.columns))
-    return df
-
-
-def build_pipeline():
-    """Build scikit-learn preprocessing pipeline."""
-    from src.features.pipeline import build_pipeline as build_feature_pipeline
-
-    return build_feature_pipeline()
-
-
-def train_epoch(
-    model: nn.Module,
-    train_loader: DataLoader,
-    optimizer: optim.Optimizer,
-    criterion: nn.Module,
-    device: torch.device,
-) -> float:
-    """Train one epoch."""
-    model.train()
-    total_loss = 0.0
-
-    for batch_X, batch_y in train_loader:
-        batch_X, batch_y = batch_X.to(device), batch_y.to(device)
-        outputs = model(batch_X).squeeze(-1)
-        loss = criterion(outputs, batch_y)
-
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-        total_loss += loss.item() * batch_X.size(0)
-
-    return total_loss / len(train_loader.dataset)
-
-
-def validate_epoch(
-    model: nn.Module,
-    val_loader: DataLoader,
-    criterion: nn.Module,
-    device: torch.device,
-) -> float:
-    """Validate one epoch."""
-    model.eval()
-    total_loss = 0.0
-
-    with torch.no_grad():
-        for batch_X, batch_y in val_loader:
-            batch_X, batch_y = batch_X.to(device), batch_y.to(device)
-            outputs = model(batch_X).squeeze(-1)
-            loss = criterion(outputs, batch_y)
-            total_loss += loss.item() * batch_X.size(0)
-
-    return total_loss / len(val_loader.dataset)
-
-
-def train_best_model(
-    X_train: np.ndarray,
+def _run_training_loop(
+    X_train_np: np.ndarray,
     y_train: np.ndarray,
-    config: dict[str, Any],
+    X_val_np: np.ndarray,
+    y_val: np.ndarray,
+    cfg: dict,
+    input_dim: int,
     device: torch.device,
-) -> tuple[torch.nn.Module, dict[str, list]]:
-    """Train model with configured hyperparameters."""
-    batch_size = config["batch_size"]
-    learning_rate = config["learning_rate"]
-    epochs = config["epochs"]
-    patience = config["early_stopping_patience"]
-    hidden_dim = config["hidden_dim"]
-    hidden_layers = config["hidden_layers"]
-    dropout = config["dropout"]
-    activation = config["activation"]
+) -> tuple[dict, dict]:
+    """Treina o modelo em um split (fold ou final). Retorna (state_dict, métricas)."""
+    hidden_dims: list[int] = cfg["model"]["hidden_dims"]
+    dropout_rates: list[float] = cfg["model"]["dropout"]
+    lr: float = cfg["training"]["learning_rate"]
+    weight_decay: float = cfg["training"]["weight_decay"]
+    batch_size: int = cfg["training"]["batch_size"]
+    epochs: int = cfg["training"]["epochs"]
+    es_patience: int = cfg["training"]["early_stopping_patience"]
+    sched_patience: int = cfg["training"]["scheduler_patience"]
 
-    # Split for validation during training
-    train_size = int(0.7 * len(X_train))
-    val_size = len(X_train) - train_size
-    X_tr, X_val, y_tr, y_val = train_test_split(
-        X_train, y_train, test_size=val_size / len(X_train), random_state=RANDOM_SEED, stratify=y_train
-    )
+    model = ChurnMLP(input_dim, hidden_dims, dropout_rates).to(device)
+    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([POS_WEIGHT], device=device))
+    optimizer = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=sched_patience)
 
-    train_loader = DataLoader(
-        TensorDataset(torch.FloatTensor(X_tr), torch.FloatTensor(y_tr)),
-        batch_size=batch_size,
-        shuffle=True,
-    )
-    val_loader = DataLoader(
-        TensorDataset(torch.FloatTensor(X_val), torch.FloatTensor(y_val)),
-        batch_size=batch_size,
-        shuffle=False,
-    )
+    train_loader = _make_loader(X_train_np, y_train, batch_size, shuffle=True)
+    X_val_t = torch.tensor(X_val_np, dtype=torch.float32).to(device)
+    y_val_t = torch.tensor(y_val, dtype=torch.float32).unsqueeze(1).to(device)
 
-    model = MLPChurnModel(
-        input_dim=X_train.shape[1],
-        hidden_layers=hidden_layers,
-        hidden_dim=hidden_dim,
-        dropout=dropout,
-        activation=activation,
-    )
-    model.to(device)
-
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-
-    # Calculate pos_weight for imbalanced data
-    n_neg = (y_train == 0).sum()
-    n_pos = (y_train == 1).sum()
-    pos_weight = torch.tensor([n_neg / n_pos]).to(device)
-
-    criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-
-    train_losses = []
-    val_losses = []
     best_val_loss = float("inf")
     patience_counter = 0
-    best_model_state = None
-    best_epoch = 0
+    best_state: dict = {}
 
-    log.info("training_started", epochs=epochs, batch_size=batch_size, lr=learning_rate)
+    for _epoch in range(1, epochs + 1):
+        model.train()
+        train_loss = 0.0
+        for xb, yb in train_loader:
+            xb, yb = xb.to(device), yb.to(device)
+            optimizer.zero_grad()
+            loss = criterion(model(xb), yb)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item() * xb.size(0)
+        train_loss /= len(train_loader.dataset)
 
-    for epoch in range(epochs):
-        train_loss = train_epoch(model, train_loader, optimizer, criterion, device)
-        val_loss = validate_epoch(model, val_loader, criterion, device)
+        model.eval()
+        with torch.no_grad():
+            val_loss = criterion(model(X_val_t), y_val_t).item()
 
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
+        scheduler.step(val_loss)
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
-            best_model_state = model.state_dict().copy()
-            best_epoch = epoch
+            best_state = {k: v.clone() for k, v in model.state_dict().items()}
         else:
             patience_counter += 1
 
-        if (epoch + 1) % 10 == 0:
-            log.info(
-                "epoch_checkpoint",
-                epoch=epoch + 1,
-                train_loss=f"{train_loss:.4f}",
-                val_loss=f"{val_loss:.4f}",
-                patience=f"{patience_counter}/{patience}",
-            )
-
-        if patience_counter >= patience:
-            log.info("early_stopping", epoch=epoch + 1, best_epoch=best_epoch + 1)
+        if patience_counter >= es_patience:
             break
 
-    model.load_state_dict(best_model_state)
-    log.info("training_completed", best_epoch=best_epoch + 1, best_val_loss=f"{best_val_loss:.4f}")
-
-    return model, {"train_loss": train_losses, "val_loss": val_losses, "best_epoch": best_epoch}
-
-
-def evaluate_model(
-    model: nn.Module, X_test: np.ndarray, y_test: np.ndarray, device: torch.device
-) -> dict[str, float]:
-    """Evaluate model on test set."""
+    model.load_state_dict(best_state)
     model.eval()
 
     with torch.no_grad():
-        logits = (
-            model(torch.FloatTensor(X_test).to(device)).squeeze(-1).cpu().numpy()
-        )
+        probs = torch.sigmoid(model(X_val_t)).cpu().numpy().ravel()
 
-    probabilities = 1 / (1 + np.exp(-logits))
-    predictions = (probabilities >= 0.5).astype(int)
-
-    metrics = {
-        "auc_roc": roc_auc_score(y_test, probabilities)
-        if len(np.unique(y_test)) > 1
-        else 0,
-        "f1": f1_score(y_test, predictions, zero_division=0),
-        "recall": recall_score(y_test, predictions, zero_division=0),
-        "precision": precision_score(y_test, predictions, zero_division=0),
-    }
-
-    if len(np.unique(y_test)) > 1:
-        prec_vals, rec_vals, _ = precision_recall_curve(y_test, probabilities)
-        metrics["pr_auc"] = auc(rec_vals, prec_vals)
-    else:
-        metrics["pr_auc"] = 0
-
-    tn, fp, fn, tp = confusion_matrix(y_test, predictions).ravel()
-    metrics["specificity"] = tn / (tn + fp) if (tn + fp) > 0 else 0
-    metrics["sensitivity"] = tp / (tp + fn) if (tp + fn) > 0 else 0
-    metrics["tn"] = int(tn)
-    metrics["fp"] = int(fp)
-    metrics["fn"] = int(fn)
-    metrics["tp"] = int(tp)
-
-    return metrics
+    return best_state, _eval_metrics(probs, y_val)
 
 
-def save_artifacts(
-    model: nn.Module,
-    pipeline,
-    config: dict[str, Any],
-    metrics: dict[str, float],
-) -> None:
-    """Save model, pipeline, and configuration."""
+def train(config_path: Path | None = None, run_name: str = "mlp_train") -> str:
+    _seed_everything(RANDOM_SEED)
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Save model
-    torch.save(model.state_dict(), MODELS_DIR / "mlp_best.pt")
-    log.info("model_saved", path=str(MODELS_DIR / "mlp_best.pt"))
+    cfg = load_config(config_path) if config_path else load_config()
+    experiment = os.getenv("MLFLOW_EXPERIMENT_NAME", "churn-mlp")
+    mlflow.set_experiment(experiment)
 
-    # Save pipeline
-    joblib.dump(pipeline, MODELS_DIR / "pipeline.pkl")
-    log.info("pipeline_saved", path=str(MODELS_DIR / "pipeline.pkl"))
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    log.info("train.start", device=str(device), experiment=experiment)
 
-    # Update config with metrics
-    config_to_save = config.copy()
-    config_to_save["metrics"] = {k: v for k, v in metrics.items() if k not in ["tn", "fp", "fn", "tp"]}
-
-    # Save config
-    with open(MODELS_DIR / "mlp_config.json", "w") as f:
-        json.dump(config_to_save, f, indent=2)
-    log.info("config_saved", path=str(MODELS_DIR / "mlp_config.json"))
-
-    # Save test results
-    test_results = {
-        k: float(v) if isinstance(v, (int, float, np.number)) else v
-        for k, v in metrics.items()
-    }
-    with open(MODELS_DIR / "test_results.json", "w") as f:
-        json.dump(test_results, f, indent=2)
-    log.info("test_results_saved", path=str(MODELS_DIR / "test_results.json"))
-
-
-def register_in_mlflow(
-    model: nn.Module,
-    config: dict[str, Any],
-    metrics: dict[str, float],
-) -> None:
-    """Register experiment and model in MLflow."""
-    try:
-        experiment_name = "churn-mlp-training"
-        mlflow.set_experiment(experiment_name)
-
-        with mlflow.start_run(run_name="train-best-model"):
-            # Log hyperparameters
-            mlflow.log_param("input_dim", config["input_dim"])
-            mlflow.log_param("hidden_dim", config["hidden_dim"])
-            mlflow.log_param("hidden_layers", config["hidden_layers"])
-            mlflow.log_param("dropout", config["dropout"])
-            mlflow.log_param("activation", config["activation"])
-            mlflow.log_param("batch_size", config["batch_size"])
-            mlflow.log_param("learning_rate", config["learning_rate"])
-            mlflow.log_param("epochs", config["epochs"])
-            mlflow.log_param("early_stopping_patience", config["early_stopping_patience"])
-
-            # Log metrics
-            for metric_name, metric_value in metrics.items():
-                if (
-                    metric_name not in ["tn", "fp", "fn", "tp"]
-                    and isinstance(metric_value, (int, float, np.number))
-                ):
-                    mlflow.log_metric(metric_name, float(metric_value))
-
-            # Log model
-            mlflow.pytorch.log_model(model, "model", pickle_module=pickle)
-
-            # Log artifacts
-            mlflow.log_artifact(str(MODELS_DIR / "mlp_config.json"))
-            mlflow.log_artifact(str(MODELS_DIR / "test_results.json"))
-
-            # Set tags
-            mlflow.set_tag("model_type", "MLP")
-            mlflow.set_tag("status", "training-completed")
-            mlflow.set_tag("dataset", "Telco Customer Churn")
-            mlflow.set_tag("random_seed", str(RANDOM_SEED))
-
-        log.info("mlflow_registration_completed", experiment=experiment_name)
-    except Exception as e:
-        log.warning("mlflow_registration_failed", error=str(e))
-
-
-def validate_performance(metrics: dict[str, float]) -> bool:
-    """Validate model performance against business metric."""
-    recall = metrics.get("recall", 0)
-
-    if recall < 0.75:
-        log.error(
-            "recall_threshold_not_met",
-            recall=f"{recall:.4f}",
-            required=0.75,
-        )
-        return False
-
-    log.info("recall_threshold_met", recall=f"{recall:.4f}")
-    return True
-
-
-def log_summary(metrics: dict[str, float]) -> None:
-    """Log training summary."""
-    log.info(
-        "training_summary",
-        auc_roc=f"{metrics.get('auc_roc', 0):.4f}",
-        recall=f"{metrics.get('recall', 0):.4f}",
-        precision=f"{metrics.get('precision', 0):.4f}",
-        pr_auc=f"{metrics.get('pr_auc', 0):.4f}",
-        f1=f"{metrics.get('f1', 0):.4f}",
-        specificity=f"{metrics.get('specificity', 0):.4f}",
-        sensitivity=f"{metrics.get('sensitivity', 0):.4f}",
-    )
-
-
-def main():
-    """Main training pipeline."""
-    log.info("training_pipeline_started", seed=RANDOM_SEED, device=str(DEVICE))
-
-    # 1. Load config
-    config = load_config(CONFIG_FILE)
-    log.info("config_loaded", config_keys=list(config.keys()))
-
-    # 2. Load data
-    df = load_processed_data(DATA_DIR / "telco_churn_cleaned.csv")
+    # ── Dados ──────────────────────────────────────────────────────────────
+    df, dataset_hash = load_raw()
     X = df.drop(columns=["Churn"])
-    y = df["Churn"].astype(int).values
+    y = df["Churn"].values
 
-    # 3. Split estratificado
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.3, random_state=RANDOM_SEED, stratify=y
+    # Hold-out test set — não entra no CV
+    X_train_df, X_test_df, y_train, y_test = train_test_split(
+        X, y, test_size=TEST_SIZE, random_state=RANDOM_SEED, stratify=y,
     )
-    log.info("data_split", train_size=len(X_train), test_size=len(X_test))
+    log.info("data.split", train=len(X_train_df), test=len(X_test_df))
 
-    # 4. Build pipeline and transform
-    pipeline = build_pipeline()
-    X_train_processed = pipeline.fit_transform(X_train)
-    X_test_processed = pipeline.transform(X_test)
-    log.info("pipeline_fitted", input_dim=X_train_processed.shape[1])
+    # ── StratifiedKFold (k=5) no conjunto de treino ────────────────────────
+    kf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=RANDOM_SEED)
+    fold_metrics: list[dict] = []
 
-    # 5. Train model
-    model, history = train_best_model(X_train_processed, y_train, config, DEVICE)
+    log.info("cv.start", n_folds=N_FOLDS)
+    for fold, (tr_idx, val_idx) in enumerate(kf.split(X_train_df, y_train)):
+        X_fold_tr = X_train_df.iloc[tr_idx]
+        X_fold_val = X_train_df.iloc[val_idx]
+        y_fold_tr = y_train[tr_idx]
+        y_fold_val = y_train[val_idx]
 
-    # 6. Evaluate on test set
-    metrics = evaluate_model(model, X_test_processed, y_test, DEVICE)
+        fold_pipe = build_pipeline()
+        X_fold_tr_np = fit_transform(fold_pipe, X_fold_tr)
+        X_fold_val_np = transform(fold_pipe, X_fold_val)
+        input_dim = X_fold_tr_np.shape[1]
 
-    # 7. Validate performance
-    if not validate_performance(metrics):
-        log.error("model_validation_failed")
-        sys.exit(2)
+        _, metrics = _run_training_loop(
+            X_fold_tr_np, y_fold_tr, X_fold_val_np, y_fold_val, cfg, input_dim, device,
+        )
+        fold_metrics.append(metrics)
+        log.info("cv.fold_done", fold=fold, recall=round(metrics["recall"], 4),
+                 pr_auc=round(metrics["pr_auc"], 4), roc_auc=round(metrics["roc_auc"], 4))
 
-    # 8. Save artifacts
-    save_artifacts(model, pipeline, config, metrics)
+    cv_summary = {
+        f"cv_{k}_mean": float(np.mean([m[k] for m in fold_metrics]))
+        for k in fold_metrics[0]
+    }
+    cv_summary |= {
+        f"cv_{k}_std": float(np.std([m[k] for m in fold_metrics]))
+        for k in fold_metrics[0]
+    }
+    log.info("cv.done", cv_recall_mean=round(cv_summary["cv_recall_mean"], 4),
+             cv_pr_auc_mean=round(cv_summary["cv_pr_auc_mean"], 4))
 
-    # 9. Register in MLflow
-    register_in_mlflow(model, config, metrics)
+    # ── Modelo final — treinado no conjunto completo de treino ─────────────
+    final_pipe = build_pipeline()
+    X_train_np = fit_transform(final_pipe, X_train_df)
+    X_test_np = transform(final_pipe, X_test_df)
+    input_dim = X_train_np.shape[1]
+    save_pipeline(final_pipe)
 
-    # 10. Log summary
-    log_summary(metrics)
+    final_state, test_metrics = _run_training_loop(
+        X_train_np, y_train, X_test_np, y_test, cfg, input_dim, device,
+    )
+    log.info("final.metrics", **{k: round(v, 4) for k, v in test_metrics.items()})
 
-    log.info("training_pipeline_completed", status="success")
-    return 0
+    recall_ok = test_metrics["recall"] >= RECALL_TARGET
+    if not recall_ok:
+        log.warning("eval.recall_below_target", recall=test_metrics["recall"], target=RECALL_TARGET)
+
+    # ── Artefatos ──────────────────────────────────────────────────────────
+    model_path = MODELS_DIR / "mlp_best.pt"
+    pipeline_path = MODELS_DIR / "pipeline.pkl"
+
+    final_model = ChurnMLP(input_dim, cfg["model"]["hidden_dims"], cfg["model"]["dropout"])
+    final_model.load_state_dict(final_state)
+    torch.save(final_model.state_dict(), model_path)
+
+    # ── MLflow ─────────────────────────────────────────────────────────────
+    with mlflow.start_run(run_name=run_name) as run:
+        mlflow.log_params({
+            "input_dim": input_dim,
+            "hidden_dims": str(cfg["model"]["hidden_dims"]),
+            "dropout": str(cfg["model"]["dropout"]),
+            "learning_rate": cfg["training"]["learning_rate"],
+            "weight_decay": cfg["training"]["weight_decay"],
+            "batch_size": cfg["training"]["batch_size"],
+            "epochs_max": cfg["training"]["epochs"],
+            "early_stopping_patience": cfg["training"]["early_stopping_patience"],
+            "n_folds": N_FOLDS,
+            "test_size": TEST_SIZE,
+            "random_seed": RANDOM_SEED,
+            "pos_weight": POS_WEIGHT,
+        })
+
+        for fold, fm in enumerate(fold_metrics):
+            mlflow.log_metrics({f"fold{fold}_{k}": v for k, v in fm.items()}, step=fold)
+
+        mlflow.log_metrics(cv_summary)
+        mlflow.log_metrics(test_metrics)
+
+        mlflow.set_tag("dataset_hash", dataset_hash)
+        mlflow.set_tag("recall_target_met", str(recall_ok))
+
+        mlflow.log_artifact(str(model_path))
+        mlflow.log_artifact(str(pipeline_path))
+
+        run_id = run.info.run_id
+
+    log.info("mlflow.run_logged", run_id=run_id, experiment=experiment,
+             recall_ok=recall_ok, recall=round(test_metrics["recall"], 4))
+    return run_id
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Treinar ChurnMLP")
+    parser.add_argument("--config", type=Path, default=None)
+    parser.add_argument("--run-name", default=os.getenv("MLFLOW_RUN_NAME", "mlp_train"))
+    return parser.parse_args()
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    args = _parse_args()
+    train(config_path=args.config, run_name=args.run_name)
+    sys.exit(0)

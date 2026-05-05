@@ -1,0 +1,45 @@
+version: "3.9"
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.19.0
+    container_name: mlflow
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow_data:/mlflow
+    environment:
+      - AWS_DEFAULT_REGION=${AWS_REGION:-us-east-1}
+    command: >
+      mlflow server
+        --host 0.0.0.0
+        --port 5000
+        --backend-store-uri sqlite:////mlflow/mlflow.db
+        --default-artifact-root ${ARTIFACT_URI:-/mlflow/artifacts}
+        --static-prefix /mlflow
+        --allowed-hosts "*"
+        --cors-allowed-origins "*"
+    networks:
+      - app-net
+
+  fastapi:
+    image: ${DOCKER_IMAGE}:latest
+    container_name: fastapi
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000/mlflow
+      - MLFLOW_EXPERIMENT_NAME=${MLFLOW_EXPERIMENT_NAME:-churn-mlp}
+    depends_on:
+      - mlflow
+    networks:
+      - app-net
+
+volumes:
+  mlflow_data:
+
+networks:
+  app-net:
+    driver: bridge
