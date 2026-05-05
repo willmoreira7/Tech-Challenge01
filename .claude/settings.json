@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git *)",
+      "Bash(uv sync *)",
+      "Bash(uv run *)",
+      "Bash(ruff check *)",
+      "Bash(gh pr *)",
+      "Bash(python3 *)",
+      "Bash(python3.12 *)",
+      "Bash(pip show *)",
+      "Bash(pip install *)",
+      "Bash(curl *)",
+      "Bash(ssh *)",
+      "Bash(terraform init *)",
+      "Bash(terraform validate *)",
+      "Bash(terraform plan *)",
+      "Bash(terraform apply *)",
+      "WebFetch(domain:mlflow.org)"
+    ]
+  }
+}
