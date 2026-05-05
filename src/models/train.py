@@ -1,5 +1,6 @@
 """Treina ChurnMLP com StratifiedKFold(5) e registra experimento no MLflow."""
 import argparse
+import json
 import os
 import sys
 from pathlib import Path
@@ -243,6 +244,22 @@ def train(config_path: Path | None = None, run_name: str = "mlp_train") -> str:
     final_model = ChurnMLP(input_dim, cfg["model"]["hidden_dims"], cfg["model"]["dropout"])
     final_model.load_state_dict(final_state)
     torch.save(final_model.state_dict(), model_path)
+
+    model_config = {
+        "input_dim": input_dim,
+        "hidden_dims": cfg["model"]["hidden_dims"],
+        "dropout": cfg["model"]["dropout"],
+        "batch_size": cfg["training"]["batch_size"],
+        "epochs": cfg["training"]["epochs"],
+        "learning_rate": cfg["training"]["learning_rate"],
+        "weight_decay": cfg["training"]["weight_decay"],
+        "early_stopping_patience": cfg["training"]["early_stopping_patience"],
+        "metrics": test_metrics,
+    }
+    config_save_path = MODELS_DIR / "mlp_config.json"
+    with open(config_save_path, "w") as f:
+        json.dump(model_config, f, indent=2)
+    log.info("model.config_saved", path=str(config_save_path))
 
     # ── MLflow ─────────────────────────────────────────────────────────────
     with mlflow.start_run(run_name=run_name) as run:
