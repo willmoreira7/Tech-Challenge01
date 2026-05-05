@@ -16,7 +16,7 @@ Pipeline ML **production-ready** para predição de churn em operadora de teleco
 | Serviço | URL |
 |---------|-----|
 | **API FastAPI** | https://api.pocsarcotech.com |
-| **MLflow UI** | https://mlflow.pocsarcotech.com/mlflow/ |
+| **MLflow UI** | https://mlflow.pocsarcotech.com |
 | **API Docs (Swagger)** | https://api.pocsarcotech.com/docs |
 
 ---
