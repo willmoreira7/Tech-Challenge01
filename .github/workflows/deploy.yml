@@ -7,7 +7,6 @@ on:
 env:
   IMAGE: mmacanmunhoz/churn-api
   COMPOSE_DIR: /opt/mlflow-fastapi
-  EC2_HOST: api.pocsarcotech.com
   HEALTH_URL: https://api.pocsarcotech.com/health
 
 concurrency:
@@ -19,6 +18,8 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     environment: production
+    env:
+      EC2_HOST: ${{ secrets.EC2_HOST }}
 
     steps:
       - name: Extrair RC tag e imagem
