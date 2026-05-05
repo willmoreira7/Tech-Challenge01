@@ -74,6 +74,7 @@ async def handle_health(app: FastAPI) -> HealthResponse:
     return HealthResponse(
         status=status,
         model_version="1.0.0",
+        model_source=getattr(app.state, "model_source", "unknown"),
         uptime_seconds=round(uptime, 2),
         timestamp=datetime.utcnow().isoformat() + "Z",
     )

@@ -119,6 +119,7 @@ class HealthResponse(BaseModel):
 
     status: str = Field(..., description="Status do serviço")
     model_version: str = Field(..., description="Versão do modelo")
+    model_source: str = Field(..., description="Origem do modelo: 'mlflow_registry' ou 'local_file'")
     uptime_seconds: float = Field(..., ge=0, description="Uptime em segundos")
     timestamp: str = Field(..., description="Timestamp ISO 8601")
 
