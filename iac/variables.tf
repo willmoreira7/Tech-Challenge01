@@ -40,7 +40,7 @@ variable "mlflow_port" {
 }
 
 variable "flask_port" {
-  description = "Host port for the Flask application"
+  description = "Host port for the FastAPI application"
   type        = number
   default     = 8080
 }
@@ -55,4 +55,10 @@ variable "volume_size" {
   description = "Root EBS volume size in GB"
   type        = number
   default     = 30
+}
+
+variable "base_domain" {
+  description = "Base domain used to derive subdomains (api.<domain> and mlflow.<domain>); must have a wildcard ACM cert issued"
+  type        = string
+  default     = "pocsarcotech.com"
 }

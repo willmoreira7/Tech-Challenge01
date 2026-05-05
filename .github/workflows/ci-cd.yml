@@ -1,0 +1,212 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+  APP_DIR: /opt/mlflow-fastapi
+
+jobs:
+  # ── 1. Lint + Testes — executa sempre ─────────────────────────────────
+  test:
+    name: Lint & Testes
+    runs-on: ubuntu-latest
+    outputs:
+      ml_changed: ${{ steps.filter.outputs.ml }}
+      api_changed: ${{ steps.filter.outputs.api }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detectar arquivos alterados
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ml:
+              - 'src/models/**'
+              - 'src/features/**'
+              - 'src/data/**'
+              - 'configs/**'
+            api:
+              - 'src/api/**'
+              - 'src/models/**'
+              - 'src/features/**'
+              - 'Dockerfile'
+              - 'pyproject.toml'
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Configurar Python ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Instalar dependências
+        run: uv sync --group dev
+
+      - name: Lint (ruff)
+        run: uv run ruff check src/ tests/ --output-format=github
+
+      - name: Testes
+        run: uv run pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
+
+  # ── 2. Treino — só em main, só quando código ML muda ──────────────────
+  train:
+    name: Treinar Experimento MLflow
+    needs: test
+    if: >
+      needs.test.outputs.ml_changed == 'true' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Instalar uv (com cache)
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - name: Configurar Python ${{ env.PYTHON_VERSION }}
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Instalar dependências
+        run: uv sync --group dev
+
+      - name: Treinar e registrar experimento
+        env:
+          MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
+          MLFLOW_EXPERIMENT_NAME: churn-mlp
+          MLFLOW_RUN_NAME: mlp_${{ github.sha }}
+        run: uv run python src/models/train.py --run-name "$MLFLOW_RUN_NAME"
+
+      - name: Verificar artefatos gerados
+        run: ls -lh models/mlp_best.pt models/pipeline.pkl
+
+      - name: Recarregar modelo na API
+        run: |
+          curl -sf -X POST https://api.pocsarcotech.com/model/reload \
+            -H "Content-Type: application/json" \
+            || echo "::warning::Recarga automática falhou — chame /model/reload manualmente."
+
+      - name: Resumo do experimento
+        if: always()
+        run: |
+          echo "## Experimento MLflow" >> $GITHUB_STEP_SUMMARY
+          echo "| Campo | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Tracking URI | \`${{ vars.MLFLOW_TRACKING_URI }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Experiment | \`churn-mlp\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ github.ref_name }}\` |" >> $GITHUB_STEP_SUMMARY
+
+  # ── 3. Deploy — só em main, só quando código da API muda ──────────────
+  deploy:
+    name: Deploy FastAPI → EC2
+    needs: test
+    if: >
+      needs.test.outputs.api_changed == 'true' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Salvar imagem atual como rollback
+        run: |
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/churn-api"
+          docker pull "$IMAGE:latest" 2>/dev/null \
+            && docker tag  "$IMAGE:latest" "$IMAGE:rollback" \
+            && docker push "$IMAGE:rollback" \
+            || echo "Sem imagem anterior — primeiro deploy"
+
+      - name: Configurar Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build e push imagem
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/churn-api:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/churn-api:${{ github.sha }}
+
+      - name: Configurar SSH
+        env:
+          SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          cat >> ~/.ssh/config <<EOF
+          Host ec2
+            HostName ${{ secrets.EC2_HOST }}
+            User ubuntu
+            IdentityFile ~/.ssh/deploy_key
+            StrictHostKeyChecking no
+            ServerAliveInterval 30
+          EOF
+
+      - name: Atualizar docker-compose e variáveis na EC2
+        run: |
+          ssh ec2 "mkdir -p /opt/mlflow-fastapi"
+          rsync -avz docker-compose.prod.yml ec2:/opt/mlflow-fastapi/docker-compose.yml
+          ssh ec2 "
+            if grep -q '^DOCKER_IMAGE=' /opt/mlflow-fastapi/.env 2>/dev/null; then
+              sed -i 's|^DOCKER_IMAGE=.*|DOCKER_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/churn-api|' /opt/mlflow-fastapi/.env
+            else
+              echo 'DOCKER_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/churn-api' >> /opt/mlflow-fastapi/.env
+            fi
+          "
+
+      - name: Pull e reiniciar container
+        run: |
+          ssh ec2 << 'REMOTE'
+            set -euo pipefail
+            cd /opt/mlflow-fastapi
+            docker compose pull fastapi
+            docker compose up -d fastapi
+            docker compose ps fastapi
+          REMOTE
+
+      - name: Health check da API
+        run: |
+          for i in $(seq 1 6); do
+            if curl -sf https://api.pocsarcotech.com/health > /dev/null; then
+              echo "API saudável após $((i * 10))s"
+              exit 0
+            fi
+            echo "Tentativa $i/6 — aguardando 10s..."
+            sleep 10
+          done
+          echo "ERRO: API não respondeu após 60s"
+          exit 1
+
+      - name: Rollback em caso de falha
+        if: failure()
+        run: |
+          IMAGE="${{ secrets.DOCKERHUB_USERNAME }}/churn-api"
+          ssh ec2 "
+            docker pull \"$IMAGE:rollback\" 2>/dev/null \
+              && docker tag \"$IMAGE:rollback\" \"$IMAGE:latest\" \
+              && cd /opt/mlflow-fastapi && docker compose up -d fastapi \
+              || { echo 'Sem imagem de rollback — reiniciando container atual'; \
+                   docker compose -f /opt/mlflow-fastapi/docker-compose.yml up -d fastapi; }
+          "
