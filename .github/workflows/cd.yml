@@ -1,15 +1,15 @@
 name: CD
 
 on:
-  push:
-    tags: ['v*.*.*']
+  release:
+    types: [prereleased]
 
 env:
   PYTHON_VERSION: "3.12"
   IMAGE: mmacanmunhoz/churn-api
 
 concurrency:
-  group: cd-${{ github.ref_name }}
+  group: cd-${{ github.event.release.tag_name }}
   cancel-in-progress: false
 
 jobs:
@@ -20,6 +20,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
 
       - uses: astral-sh/setup-uv@v5
         with:
@@ -43,6 +45,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
 
       - uses: astral-sh/setup-uv@v5
         with:
@@ -57,7 +61,7 @@ jobs:
           PYTHONPATH: .
           MLFLOW_TRACKING_URI: ./mlruns
           MLFLOW_EXPERIMENT_NAME: churn-mlp
-          MLFLOW_RUN_NAME: ${{ github.ref_name }}
+          MLFLOW_RUN_NAME: ${{ github.event.release.tag_name }}
         run: uv run python src/models/train.py --run-name "$MLFLOW_RUN_NAME"
 
       - name: Resumo de métricas
@@ -75,7 +79,7 @@ jobs:
       - name: Upload artefatos
         uses: actions/upload-artifact@v4
         with:
-          name: model-artifacts-${{ github.ref_name }}
+          name: model-artifacts-${{ github.event.release.tag_name }}
           path: |
             models/mlp_best.pt
             models/pipeline.pkl
@@ -91,6 +95,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
 
       - uses: astral-sh/setup-uv@v5
         with:
@@ -103,7 +109,7 @@ jobs:
       - name: Baixar artefatos do treino
         uses: actions/download-artifact@v4
         with:
-          name: model-artifacts-${{ github.ref_name }}
+          name: model-artifacts-${{ github.event.release.tag_name }}
           path: models/
 
       - name: Suite completa
@@ -112,11 +118,11 @@ jobs:
       - name: Upload cobertura
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ github.ref_name }}
+          name: coverage-${{ github.event.release.tag_name }}
           path: coverage.xml
           retention-days: 14
 
-  # ── 4. Build RC + Smoke + Pre-Release ───────────────────────────────────
+  # ── 4. Build RC + Smoke ──────────────────────────────────────────────────
   build-rc:
     name: Build & Smoke RC
     needs: [test, train-rc, integration-test]
@@ -126,11 +132,13 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
 
       - name: Baixar artefatos do treino
         uses: actions/download-artifact@v4
         with:
-          name: model-artifacts-${{ github.ref_name }}
+          name: model-artifacts-${{ github.event.release.tag_name }}
           path: models/
 
       - name: Verificar artefatos presentes
@@ -150,11 +158,11 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ env.IMAGE }}:${{ github.ref_name }}
+          tags: ${{ env.IMAGE }}:${{ github.event.release.tag_name }}
 
       - name: Smoke test no RC
         run: |
-          docker run -d --name smoke-api -p 8080:8080 ${{ env.IMAGE }}:${{ github.ref_name }}
+          docker run -d --name smoke-api -p 8080:8080 ${{ env.IMAGE }}:${{ github.event.release.tag_name }}
 
           for i in $(seq 1 12); do
             curl -sf http://localhost:8080/health > /dev/null 2>&1 && break
@@ -179,7 +187,7 @@ jobs:
 
           docker stop smoke-api
 
-      - name: Criar Pre-Release no GitHub
+      - name: Atualizar release com métricas e instruções
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -194,13 +202,10 @@ jobs:
           ")
           fi
 
-          gh release create "${{ github.ref_name }}" \
-            --prerelease \
-            --title "RC ${{ github.ref_name }}" \
-            --target "${{ github.sha }}" \
-            --notes "## Release Candidate \`${{ github.ref_name }}\`
+          gh release edit "${{ github.event.release.tag_name }}" \
+            --notes "## Release Candidate \`${{ github.event.release.tag_name }}\`
 
-          > Smoke test passou. Para deployar em produção, promova este pre-release para release.
+          > Smoke test passou ✅. Para deployar em produção, promova este pre-release para release.
 
           ### Como promover
           Clique em **Edit** → desmarque **Set as a pre-release** → **Update release**.
@@ -208,7 +213,7 @@ jobs:
 
           ### Imagem Docker
           \`\`\`
-          docker pull ${{ env.IMAGE }}:${{ github.ref_name }}
+          docker pull ${{ env.IMAGE }}:${{ github.event.release.tag_name }}
           \`\`\`
 
           ### Métricas do modelo
@@ -219,6 +224,6 @@ jobs:
           ### Commit
           \`${{ github.sha }}\`"
 
-          echo "## Pre-Release criado ✅" >> $GITHUB_STEP_SUMMARY
-          echo "Tag: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "Promova em: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "## RC Validado ✅" >> $GITHUB_STEP_SUMMARY
+          echo "Tag: \`${{ github.event.release.tag_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "Promova em: https://github.com/${{ github.repository }}/releases/tag/${{ github.event.release.tag_name }}" >> $GITHUB_STEP_SUMMARY
