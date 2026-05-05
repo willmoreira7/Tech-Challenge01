@@ -12,6 +12,8 @@ Para detalhes, leia os arquivos referenciados em docs/.
 - Todo experimento MLflow deve registrar: params, métricas, dataset hash e artefatos.
 </important>
 
+Regras de qualidade de código: ver `.claude/rules/code-quality.md`.
+
 ---
 
 ## Visão geral
@@ -106,10 +108,10 @@ docker compose -f docker-compose.local.yml up -d --build
 
 | Arquivo | Conteúdo |
 |---------|----------|
-| `docs/conventions.md` | Convenções de código, seeds, logging, commits |
-| `docs/decisions.md` | Decisões arquiteturais, experimentos MLflow, lições |
-| `docs/model_card.md` | Performance, limitações, vieses, cenários de falha |
-| `docs/monitoring_plan.md` | Métricas, alertas, playbook de resposta |
+| `docs/CONVENTIONS.md` | Convenções de código, seeds, logging, commits |
+| `docs/DECISIONS.md` | Decisões arquiteturais, experimentos MLflow, lições |
+| `docs/MODEL_CARD.md` | Performance, limitações, vieses, cenários de falha |
+| `docs/MONITORING_PLAN.md` | Métricas, alertas, playbook de resposta |
 | `specs/mlp-model.md` | Arquitetura MLP, hiperparâmetros, early stopping, validação de performance |
 | `specs/model-training.md` | Pipeline de treinamento, fluxo de configuração, CI/CD integration |
 | `specs/inference-api.md` | Endpoints FastAPI, schemas Pydantic, rate limiting, health check |

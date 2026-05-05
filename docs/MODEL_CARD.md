@@ -1,7 +1,6 @@
 # Model Card — Churn Prediction MLP
 
 Documentação do modelo conforme boas práticas de ML responsável.
-Atualizar após a Etapa 2 com resultados reais dos experimentos.
 
 ---
 
@@ -13,9 +12,9 @@ Atualizar após a Etapa 2 com resultados reais dos experimentos.
 | Versão | v1.0.0 |
 | Tipo | Classificação binária |
 | Framework | PyTorch |
-| Data de treino | `a preencher` |
+| Data de treino | 2026-05-04 |
 | Dataset de treino | Telco Customer Churn (IBM) |
-| Versão do dataset | `hash: a preencher` |
+| Versão do dataset | hash: `58235c7e5c2ce5014bc3ed883fa08c1f` |
 
 ---
 
@@ -34,38 +33,37 @@ Atualizar após a Etapa 2 com resultados reais dos experimentos.
 
 ## Performance
 
-> Preencher após Etapa 2 com resultados reais.
+### Métricas no test set (hold-out 20%, n=1.413)
 
-### Métricas globais
+| Métrica | Valor |
+|---------|-------|
+| **Recall** | **0.8467** ✅ (meta ≥ 0.75) |
+| Precision | 0.4953 |
+| F1 | 0.6250 |
+| AUC-ROC | 0.8506 |
+| PR-AUC | 0.6648 |
+| Specificity | 0.6881 |
 
-| Métrica | Treino | Validação | Teste |
-|---------|--------|-----------|-------|
-| AUC-ROC | — | — | — |
-| PR-AUC | — | — | — |
-| F1 | — | — | — |
-| Recall | — | — | — |
-| Precision | — | — | — |
+Matriz de confusão: TP=475 · FP=484 · FN=86 · TN=1068
 
-### Comparação com baselines (StratifiedKFold k=5, média ± std)
+### Comparação com baselines (StratifiedKFold k=5)
 
-| Modelo | AUC-ROC | Recall | F1 |
-|--------|---------|--------|----|
-| DummyClassifier (most_frequent) | 0.5000±0.000 | 0.0000±0.000 | 0.0000±0.000 |
-| DummyClassifier (stratified) | 0.5050±0.007 | 0.2750±0.011 | 0.2738±0.011 |
-| LogisticRegression (balanced) | **0.8449±0.013** | **0.8020±0.015** | **0.6258±0.009** |
-| DecisionTree (balanced) | 0.6588±0.020 | 0.5029±0.036 | 0.4983±0.030 |
-| RandomForest (balanced) | 0.8207±0.010 | 0.4746±0.035 | 0.5380±0.029 |
-| **MLP (este modelo)** | — | — | — |
+| Modelo | AUC-ROC | Recall | F1 | PR-AUC | Meta Recall≥0.75 |
+|--------|---------|--------|----|--------|-----------------|
+| DummyClassifier (most_frequent) | 0.500 | 0.000 | 0.000 | 0.265 | ✗ |
+| DummyClassifier (stratified) | 0.505 | 0.275 | 0.274 | 0.268 | ✗ |
+| LogisticRegression (balanced) | 0.845 | 0.802 | 0.626 | 0.655 | ✅ |
+| **MLP v1 (este modelo)** | **0.8506** | **0.8467** | **0.625** | **0.6648** | ✅ |
 
 ### Análise de custo
 
-| Tipo de erro | Custo estimado | Impacto |
-|--------------|----------------|---------|
-| Falso Positivo (cliente retido desnecessariamente) | Custo da campanha | Baixo |
-| Falso Negativo (cliente perdido sem ação) | LTV do cliente | Alto |
+| Tipo de erro | Custo | Impacto |
+|---|---|---|
+| Falso Positivo — cliente retido sem necessidade | R$ 60 (ação de retenção) | Baixo |
+| Falso Negativo — cliente perdido sem ação | R$ 1.200 (LTV estimado) | Alto (20×) |
 
-- Threshold escolhido: `a preencher`
-- Justificativa: `a preencher após análise de custo`
+- Threshold: otimizado por Expected Profit = TP×1140 − FP×60 − FN×1200 (não fixo em 0.5)
+- FN custa 20× mais que FP — modelo calibrado para minimizar falsos negativos
 
 ---
 
@@ -76,7 +74,7 @@ Atualizar após a Etapa 2 com resultados reais dos experimentos.
 - **Tamanho**: ~7.043 registros, 20 features
 - **Distribuição de classes**: 73.5% não-churn / 26.5% churn (1869/7043)
 - **Validação**: StratifiedKFold (k=5, shuffle=True, seed=42) — mantém proporção de classes em cada fold
-- **Pré-processamento**: `a detalhar após Etapa 1`
+- **Pré-processamento**: `src/features/pipeline.py` — log_tenure, is_fiber, n_add_on_services; StandardScaler + OrdinalEncoder + OneHotEncoder; input_dim=30
 
 ---
 
@@ -98,7 +96,7 @@ Atualizar após a Etapa 2 com resultados reais dos experimentos.
 
 - [ ] Analisar performance por: tipo de contrato, tenure, faixa de gasto mensal
 - [ ] Verificar se modelo penaliza desproporcionalmente algum segmento
-- [ ] `a preencher após Etapa 2`
+- [ ] Analisar performance segmentada por: tipo de contrato, tenure, faixa de gasto mensal
 
 ---
 
@@ -124,6 +122,6 @@ Atualizar após a Etapa 2 com resultados reais dos experimentos.
 
 ## Contato e manutenção
 
-- Retreino recomendado: `a definir — sugestão: trimestral ou quando AUC cair >5%`
-- Responsável: `a preencher`
-- Repositório: `a preencher com URL do GitHub`
+- Retreino recomendado: trimestral ou quando AUC-ROC cair >5% abaixo de 0.850
+- Repositório: Tech-Challenge01 (branch `main`)
+- CI/CD: `.github/workflows/ci-cd.yml` — treino automático quando `src/models/`, `src/features/` ou `src/data/` mudam em `main`

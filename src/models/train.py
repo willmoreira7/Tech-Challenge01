@@ -6,6 +6,7 @@ from pathlib import Path
 
 import mlflow
 import numpy as np
+import pandas as pd
 import structlog
 import torch
 import torch.nn as nn
@@ -29,7 +30,7 @@ from src.features.pipeline import (
     save_pipeline,
     transform,
 )
-from src.models.mlp import ChurnMLP
+from src.models.mlp import ChurnMLP, MLPChurnModel  # noqa: F401
 
 load_dotenv()
 
@@ -41,6 +42,16 @@ MODELS_DIR = Path("models")
 RECALL_TARGET = 0.75
 
 log = structlog.get_logger()
+
+_DEFAULT_DATA = Path("data/processed/telco_churn_cleaned.csv")
+
+
+def load_processed_data(path: Path | None = None) -> pd.DataFrame:
+    return pd.read_csv(path or _DEFAULT_DATA)
+
+
+def validate_performance(metrics: dict, target_recall: float = RECALL_TARGET) -> bool:
+    return metrics.get("recall", 0.0) >= target_recall
 
 
 def _seed_everything(seed: int) -> None:

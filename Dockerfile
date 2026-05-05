@@ -25,6 +25,10 @@ RUN pip install --no-cache-dir \
 COPY src/ ./src/
 COPY configs/ ./configs/
 
+# Artefatos do modelo — populados pelo CI antes do docker build
+# mlp_best.pt e pipeline.pkl chegam via actions/download-artifact no CD
+COPY models/ ./models/
+
 ENV PYTHONPATH=/app
 
 EXPOSE 8080

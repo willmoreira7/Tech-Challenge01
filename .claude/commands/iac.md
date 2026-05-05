@@ -1,31 +1,55 @@
 ---
 name: iac
-description: Valida, planeja e aplica a infraestrutura AWS com Terraform (EC2 + MLflow + Flask)
+description: Valida, planeja e aplica a infraestrutura AWS com Terraform (EC2 + MLflow + FastAPI). Usar quando quiser provisionar, atualizar ou destruir recursos na AWS, ou testar a stack localmente.
 ---
 
-Implemente e execute seguindo **exatamente** `specs/iac.md`.
+Consulte `specs/iac.md` para a spec completa.
 
-1. Verifique pré-requisitos:
-   - `terraform version` (requer >= 1.3.9)
-   - `aws sts get-caller-identity` (confirma credenciais AWS ativas)
-2. Entre no diretório `iac/` e inicialize se necessário (`terraform init`)
-3. Valide a sintaxe: `terraform validate` — corrija qualquer erro antes de prosseguir
-4. Gere o plano: `terraform plan` — liste os recursos que serão criados/modificados
-5. Aplique (somente se solicitado explicitamente): `terraform apply`
-6. Após apply, confirme os outputs:
-   - `mlflow_url` → acesse via browser e verifique a UI do MLflow
-   - `flask_app_url` → `GET /health` deve retornar HTTP 200
-   - `ssh_command` → valide acesso SSH à instância
-7. Para testes locais sem AWS, use o docker-compose da flask-app:
-   ```bash
-   cd iac/flask-app
-   docker compose -f docker-compose.local.yml up -d --build
-   curl http://localhost:8080/health
-   ```
+## Infraestrutura provisionada
 
-Critérios obrigatórios (conforme `specs/iac.md`):
-- `terraform validate` sem erros
-- `terraform plan` sem diff inesperado
-- `GET /health` → HTTP 200
-- `POST /train` → HTTP 200 com `run_id`
-- Run visível no MLflow UI
+- EC2 (t3.medium, Ubuntu 22.04) + ALB + Route53 + ACM
+- Módulos Terraform: `keypair`, `networking`, `iam`, `storage`, `compute`, `alb`
+- URLs: `https://mlflow.pocsarcotech.com/mlflow/` e `https://api.pocsarcotech.com`
+- Estado remoto: S3 bucket `tech-terraform-poc` / key `environment-pos/terraform.tfstate`
+
+## Pré-requisitos
+
+```bash
+terraform version   # requer >= 1.3.9
+aws sts get-caller-identity   # confirma credenciais AWS ativas
+```
+
+## Comandos Terraform
+
+```bash
+cd iac
+terraform init      # inicializa providers e backend S3
+terraform validate  # valida sintaxe HCL — corrija antes de prosseguir
+terraform plan      # preview das mudanças
+terraform apply     # provisiona (somente se solicitado explicitamente)
+terraform destroy   # destrói todos os recursos (confirmar com usuário antes)
+```
+
+## Após apply — verificar outputs
+
+```bash
+terraform output mlflow_url    # https://mlflow.pocsarcotech.com/mlflow/
+terraform output api_url       # https://api.pocsarcotech.com
+terraform output ssh_command   # acesso SSH à instância
+```
+
+Checklist:
+- `GET https://mlflow.pocsarcotech.com/mlflow/health` → 200
+- `GET https://api.pocsarcotech.com/health` → 200 com `{"status": "ok"}`
+- Run MLflow visível após `make train`
+
+## Teste local sem AWS
+
+```bash
+cd iac/flask-app
+docker compose -f docker-compose.local.yml up -d --build
+curl http://localhost:8080/health
+```
+
+**Atenção:** `iac/flask-app/` é um placeholder (Flask). A API real é FastAPI em `src/api/`.
+Nunca force push em infra sem revisão. Confirmar com usuário antes de `terraform destroy`.

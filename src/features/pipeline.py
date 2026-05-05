@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -13,6 +15,9 @@ from sklearn.preprocessing import (
 )
 
 log = structlog.get_logger()
+
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+_DEFAULT_PIPELINE_PATH = _PROJECT_ROOT / "models" / "pipeline.pkl"
 
 # ---------------------------------------------------------------------------
 # Feature engineering constants
@@ -123,12 +128,14 @@ def transform(pipeline: Pipeline, X: pd.DataFrame) -> np.ndarray:
     return pipeline.transform(X)
 
 
-def save_pipeline(pipeline: Pipeline, path: str = "models/pipeline.pkl") -> None:
-    joblib.dump(pipeline, path)
-    log.info("pipeline.saved", path=path)
+def save_pipeline(pipeline: Pipeline, path: Path | str | None = None) -> None:
+    dest = Path(path) if path else _DEFAULT_PIPELINE_PATH
+    joblib.dump(pipeline, dest)
+    log.info("pipeline.saved", path=str(dest))
 
 
-def load_pipeline(path: str = "models/pipeline.pkl") -> Pipeline:
-    pipeline = joblib.load(path)
-    log.info("pipeline.loaded", path=path)
+def load_pipeline(path: Path | str | None = None) -> Pipeline:
+    src_path = Path(path) if path else _DEFAULT_PIPELINE_PATH
+    pipeline = joblib.load(src_path)
+    log.info("pipeline.loaded", path=str(src_path))
     return pipeline

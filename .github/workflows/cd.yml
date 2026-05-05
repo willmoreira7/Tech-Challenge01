@@ -1,0 +1,277 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.12"
+  IMAGE: mmacanmunhoz/churn-api
+
+concurrency:
+  group: cd-main
+  cancel-in-progress: false
+
+jobs:
+  # ── 1. Gate ─────────────────────────────────────────────────────────────
+  test:
+    name: Lint & Testes
+    runs-on: ubuntu-latest
+    outputs:
+      ml_changed: ${{ steps.filter.outputs.ml }}
+      api_changed: ${{ steps.filter.outputs.api }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Detectar arquivos alterados
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ml:
+              - 'src/models/**'
+              - 'src/features/**'
+              - 'src/data/**'
+              - 'configs/**'
+            api:
+              - 'src/api/**'
+              - 'src/models/**'
+              - 'src/features/**'
+              - 'Dockerfile'
+              - 'pyproject.toml'
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --group dev
+
+      - name: Lint (ruff)
+        run: uv run ruff check src/ tests/ --output-format=github
+
+      - name: Testes unitários
+        run: uv run pytest tests/unit/ -v -k "not TestTrainingScript"
+
+  # ── 2. Treinar RC ────────────────────────────────────────────────────────
+  train-rc:
+    name: Treinar RC
+    needs: test
+    if: needs.test.outputs.ml_changed == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --group dev
+
+      - name: Treinar e registrar RC
+        env:
+          MLFLOW_TRACKING_URI: ${{ vars.MLFLOW_TRACKING_URI }}
+          MLFLOW_EXPERIMENT_NAME: churn-mlp
+          MLFLOW_RUN_NAME: rc-${{ github.sha }}
+        run: uv run python src/models/train.py --run-name "$MLFLOW_RUN_NAME"
+
+      - name: Resumo de métricas
+        run: |
+          echo "## Métricas do RC" >> $GITHUB_STEP_SUMMARY
+          echo "| Métrica | Valor |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          python -c "
+          import json
+          d = json.load(open('models/test_results.json'))
+          for k in ['recall','pr_auc','auc_roc','f1','precision']:
+              if k in d: print(f'| {k} | {d[k]:.4f} |')
+          " >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload artefatos
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts-${{ github.sha }}
+          path: |
+            models/mlp_best.pt
+            models/pipeline.pkl
+            models/mlp_config.json
+            models/test_results.json
+          retention-days: 30
+
+      - name: Salvar artefatos no cache
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            models/mlp_best.pt
+            models/pipeline.pkl
+            models/mlp_config.json
+            models/test_results.json
+          key: model-artifacts-main-${{ github.sha }}
+
+  # ── 3. Testes de integração (apenas após treino) ────────────────────────
+  integration-test:
+    name: Testes de Integração
+    needs: [test, train-rc]
+    if: needs.train-rc.result == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+          enable-cache: true
+
+      - run: uv python install ${{ env.PYTHON_VERSION }}
+      - run: uv sync --group dev
+
+      - name: Baixar artefatos do treino
+        uses: actions/download-artifact@v4
+        with:
+          name: model-artifacts-${{ github.sha }}
+          path: models/
+
+      - name: Suite completa
+        run: uv run pytest tests/ -v --cov=src --cov-report=xml --cov-report=term-missing
+
+      - name: Upload cobertura
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ github.sha }}
+          path: coverage.xml
+          retention-days: 14
+
+  # ── 4. Build RC + Smoke + Pre-Release ───────────────────────────────────
+  build-rc:
+    name: Build & Smoke RC
+    needs: [test, train-rc, integration-test]
+    if: |
+      always() &&
+      needs.test.result == 'success' &&
+      (
+        needs.test.outputs.api_changed == 'true' ||
+        needs.train-rc.result == 'success'
+      )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RC_TAG: rc-${{ github.sha }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar artefatos (se treino rodou neste workflow)
+        if: needs.train-rc.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: model-artifacts-${{ github.sha }}
+          path: models/
+
+      - name: Restaurar artefatos do último treino (se treino foi pulado)
+        if: needs.train-rc.result == 'skipped'
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            models/mlp_best.pt
+            models/pipeline.pkl
+            models/mlp_config.json
+            models/test_results.json
+          key: model-artifacts-main-${{ github.sha }}
+          restore-keys: model-artifacts-main-
+
+      - name: Verificar artefatos presentes
+        run: ls -lh models/mlp_best.pt models/pipeline.pkl models/mlp_config.json
+
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Configurar Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build e push RC
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.IMAGE }}:${{ env.RC_TAG }}
+
+      - name: Smoke test no RC
+        run: |
+          docker run -d --name smoke-api -p 8080:8080 ${{ env.IMAGE }}:${{ env.RC_TAG }}
+
+          for i in $(seq 1 12); do
+            curl -sf http://localhost:8080/health > /dev/null 2>&1 && break
+            [ $i -eq 12 ] && { echo "ERRO: timeout"; docker logs smoke-api; exit 1; }
+            sleep 5
+          done
+
+          curl -sf http://localhost:8080/health | python -c "
+          import sys, json; d = json.load(sys.stdin)
+          assert d['status'] == 'ok', f'status inesperado: {d}'
+          print('GET /health ✅', d['status'])
+          "
+
+          curl -sf -X POST http://localhost:8080/api/v1/predict \
+            -H "Content-Type: application/json" \
+            -d '{"gender":"Male","SeniorCitizen":0,"Partner":"Yes","Dependents":"No","tenure":12,"PhoneService":"Yes","MultipleLines":"No phone service","InternetService":"Fiber optic","OnlineSecurity":"No","OnlineBackup":"No","DeviceProtection":"No","TechSupport":"No","StreamingTV":"No","StreamingMovies":"No","Contract":"Month-to-month","PaperlessBilling":"Yes","PaymentMethod":"Electronic check","MonthlyCharges":70.35,"TotalCharges":844.20}' \
+            | python -c "
+          import sys, json; d = json.load(sys.stdin)
+          assert 0 <= d['churn_probability'] <= 1
+          print('POST /api/v1/predict ✅ churn_probability =', d['churn_probability'])
+          "
+
+          docker stop smoke-api
+
+      - name: Criar Pre-Release no GitHub
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Extrai métricas do modelo se disponíveis
+          METRICS_TABLE=""
+          if [ -f models/test_results.json ]; then
+            METRICS_TABLE=$(python -c "
+          import json
+          d = json.load(open('models/test_results.json'))
+          for k in ['recall', 'pr_auc', 'auc_roc', 'f1', 'precision']:
+              if k in d:
+                  print(f'| {k} | {d[k]:.4f} |')
+          ")
+          fi
+
+          gh release create "${{ env.RC_TAG }}" \
+            --prerelease \
+            --title "RC ${{ env.RC_TAG }}" \
+            --target "${{ github.sha }}" \
+            --notes "## Release Candidate \`${{ env.RC_TAG }}\`
+
+          > Smoke test passou. Para deployar em produção, promova este pre-release para release.
+
+          ### Como promover
+          Clique em **Edit** → desmarque **Set as a pre-release** → **Update release**.
+          Isso dispara o deploy automático em produção.
+
+          ### Imagem Docker
+          \`\`\`
+          docker pull ${{ env.IMAGE }}:${{ env.RC_TAG }}
+          \`\`\`
+
+          ### Métricas do modelo
+          | Métrica | Valor |
+          |---------|-------|
+          ${METRICS_TABLE}
+
+          ### Commit
+          \`${{ github.sha }}\`"
+
+          echo "## Pre-Release criado ✅" >> $GITHUB_STEP_SUMMARY
+          echo "Promova em: https://github.com/${{ github.repository }}/releases/tag/${{ env.RC_TAG }}" >> $GITHUB_STEP_SUMMARY

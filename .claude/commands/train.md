@@ -1,25 +1,43 @@
 ---
 name: train
-description: Treina o modelo MLP de churn e registra no MLflow
+description: Treina o modelo MLP de churn e registra no MLflow. Usar quando quiser retreinar, ajustar hiperparâmetros ou verificar se Recall≥0.75 está sendo atingido.
 ---
 
-Implemente e execute seguindo **exatamente** `specs/mlp-model.md` e `specs/feature-pipeline.md`.
+Consulte `specs/mlp-model.md` e `specs/model-training.md` para detalhes completos.
 
-1. Carregue dados via `src/data/loader.py`
-2. Aplique `src/features/pipeline.py` (conforme `specs/feature-pipeline.md`)
-3. Split estratificado: 70% train / 15% val / 15% test (`random_state=42`)
-4. Implemente `ChurnMLP` em `src/models/mlp.py` (conforme `specs/mlp-model.md`):
-   - Arquitetura: `Input → 256 → 128 → 64 → 32 → 1` (BatchNorm + ReLU + Dropout)
-   - Loss: `BCEWithLogitsLoss(pos_weight=tensor(2.7683))`
-   - Optimizer: `Adam(lr=1e-3)` + `ReduceLROnPlateau(patience=5)`
-   - Early stopping: patience=10, monitorar `val_loss`
-5. Treine com loop em `src/models/train.py`, salve melhor modelo em `models/mlp_best.pt`
-6. Avalie com 5 métricas: Recall, Precision, F1, AUC-ROC, PR-AUC
-7. Otimize threshold via Expected Profit (`TP×1140 - FP×60 - FN×1200`)
-8. Registre no MLflow (`experiment=churn-mlp`): params + métricas + dataset hash + artefatos
-9. Atualize tabela de experimentos em `docs/decisions.md`
+## Estado atual
 
-Meta a superar (LogisticRegression): Recall≥0.75 · PR-AUC>0.655 · AUC-ROC>0.845 · F1>0.626
+Script implementado em `src/models/train.py`. Resultados mais recentes: Recall=0.8467, AUC-ROC=0.8506, PR-AUC=0.6648, F1=0.625.
 
-Seeds obrigatórios: `RANDOM_SEED = 42`.
-Logging via structlog — sem print().
+## Comando
+
+```bash
+make train
+# ou com config customizada:
+uv run python src/models/train.py --config models/mlp_config.json
+```
+
+## Hiperparâmetros (models/mlp_config.json)
+
+Modificar aqui antes de retreinar — não hardcode no script:
+- `hidden_dim`, `hidden_layers`, `dropout`, `activation`
+- `learning_rate`, `batch_size`, `epochs`, `early_stopping_patience`
+
+## Pipeline de execução
+
+1. Dados: `data/raw/WA_Fn-UseC_-Telco-Customer-Churn.csv` via `src/data/loader.py`
+2. Features: `src/features/pipeline.py` — output `input_dim=30`
+3. Split: 80/20 estratificado (`random_state=42`) — hold-out fixo
+4. CV: `StratifiedKFold(k=5)` no conjunto de treino
+5. Artefatos salvos em `models/`: `mlp_best.pt`, `pipeline.pkl`, `mlp_config.json`, `test_results.json`
+6. Exit code `2` se `Recall < 0.75` no test set
+
+## MLflow
+
+- Experiment: `churn-mlp` (ou `$MLFLOW_EXPERIMENT_NAME`)
+- Params: input_dim, hidden_dims, dropout, lr, batch_size, epochs, n_folds, pos_weight
+- Metrics: por fold (`fold{k}_*`) + CV agregado (`cv_*_mean/std`) + test set
+- Tags: `dataset_hash`, `recall_target_met`
+- Artefatos: `mlp_best.pt`, `pipeline.pkl`
+
+Seeds: `RANDOM_SEED = 42`. Logging via structlog — sem print().

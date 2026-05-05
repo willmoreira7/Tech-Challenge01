@@ -32,7 +32,7 @@ Para outras categóricas (`InternetService`, `PaymentMethod`, `OnlineSecurity`, 
 
 ### Performance do modelo
 
-Baseline de referência (holdout / LogisticRegression registrado em `docs/decisions.md`) até existir baseline de produção:
+Baseline de referência (holdout / LogisticRegression registrado em `docs/DECISIONS.md`) até existir baseline de produção:
 
 
 | Métrica                           | Baseline (referência)                 | Alerta amarelo | Alerta vermelho | Frequência |
@@ -138,7 +138,7 @@ Horário de cobertura: a definir
 2. Verificar se modelo está carregado (GET /health)
 3. Verificar memória e CPU da instância (dashboards Grafana)
 4. Se modelo corrompido → rollback para versão anterior no Registry
-5. Registrar incidente em docs/decisions.md
+5. Registrar incidente em docs/DECISIONS.md
 ```
 
 ### Drift de dados detectado

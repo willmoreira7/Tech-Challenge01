@@ -107,7 +107,7 @@ Experimento MLflow: `churn-baselines` · Dataset hash: `58235c7e5c2ce5014bc3ed88
 | DummyClassifier (most_frequent) | 0.500   | 0.265  | 0.000 | 0.000  | piso absoluto                |
 | DummyClassifier (stratified)    | 0.505   | 0.268  | 0.274 | 0.275  | piso probabilístico          |
 | LogisticRegression (balanced)   | 0.845   | 0.655  | 0.626 | 0.802  | **meta de negócio atingida** |
-| MLP v1                          | —       | —      | —     | —      | a registrar na Etapa 2       |
+| MLP v1 (atual)                  | 0.8506  | 0.6648 | 0.625 | 0.8467 | **supera baseline em PR-AUC** |
 
 
 ---
@@ -115,18 +115,15 @@ Experimento MLflow: `churn-baselines` · Dataset hash: `58235c7e5c2ce5014bc3ed88
 ## API (Etapa 3)
 
 - [x] Framework: **FastAPI** em `src/api/` — schemas Pydantic, middleware structlog, lifespan context
-- [x] Contrato `POST /predict`:
-  - Input: `PredictRequest { customer: CustomerFeatures }` — 19 campos validados (Literal para categóricas, Field(ge/gt) para numéricas)
-  - Output: `PredictResponse { churn_probability: float, churn_predicted: bool, model_version: str }`
-  - Erros: `422` (payload inválido — automático via Pydantic), `500` (falha na transformação), `503` (modelo não carregado)
-- [x] Contrato `GET /health`:
-  - Output: `HealthResponse { status: str, model_version: str | None, uptime_seconds: float }`
-  - Retorna `503` se modelo não estiver carregado
-- [x] Contrato `POST /model/reload`:
-  - Força recarga do modelo sem reiniciar o container — útil após novo treino via CI/CD
-- [x] Middleware de latência: `LatencyLogMiddleware` em `src/api/middleware.py` — loga `method`, `path`, `status_code`, `latency_ms` via structlog em cada request
-- [x] Modelo carregado no **startup via lifespan** — busca automaticamente o run mais recente com `recall_target_met=True` no experimento `churn-mlp`; baixa `mlp_best.pt` + `pipeline.pkl` via MLflow HTTP API
-- [x] Decisão de carregamento: modelo buscado do MLflow (não baked na imagem) — permite atualização sem redeploy via `/model/reload`
+- [x] Endpoints implementados:
+  - `GET /` → `RootResponse` (info da API)
+  - `GET /health` → `HealthResponse { status, model_version, uptime_seconds, timestamp }`
+  - `POST /api/v1/predict` → `PredictResponse { churn_probability, churn_predicted, model_version, processing_time_ms }`
+  - `POST /api/v1/predict_batch` → `PredictBatchResponse` (até 10k registros)
+- [x] Validação: Pydantic v2 (`model_config = ConfigDict(...)`) — 422 automático em payload inválido
+- [x] Middleware: `LoggingMiddleware` (request/response + latência) + `RateLimitMiddleware` (10 req/30s por IP) — ambos em `src/api/utils.py`
+- [x] Modelo carregado no **startup via lifespan** a partir de `models/mlp_best.pt` + `models/pipeline.pkl`
+- [x] 51 testes de integração em `tests/integration/`
 
 ---
 
@@ -149,10 +146,10 @@ Experimento MLflow: `churn-baselines` · Dataset hash: `58235c7e5c2ce5014bc3ed88
 
 - **Prometheus + Grafana:** métricas operacionais da API (latência, erros, disponibilidade, uso de recurso) — stack inicialmente considerada para SLIs/SLOs em tempo quase real.
 - **MLflow:** experimentos, Model Registry e runs **batch** de avaliação/retraining (PR-AUC, Recall, Expected Profit) para comparar ao baseline; não substitui dashboards de infra.
-- **Drift:** variáveis contínuas → comparar distribuições com **KS**; categóricas nominais (ex.: `Contract`, `InternetService`) → **Chi-quadrado** sobre contagens por categoria — ver justificativa em [`docs/monitoring_plan.md`](monitoring_plan.md).
-- Plano detalhado (métricas, alertas, playbook): [`docs/monitoring_plan.md`](monitoring_plan.md).
+- **Drift:** variáveis contínuas → comparar distribuições com **KS**; categóricas nominais (ex.: `Contract`, `InternetService`) → **Chi-quadrado** sobre contagens por categoria — ver justificativa em [`docs/MONITORING_PLAN.md`](MONITORING_PLAN.md).
+- Plano detalhado (métricas, alertas, playbook): [`docs/MONITORING_PLAN.md`](MONITORING_PLAN.md).
 
 - [x] Etapa 1: LogisticRegression com `class_weight="balanced"` já atinge Recall=0.80 — o MLP precisa bater PR-AUC=0.655 mantendo Recall≥0.75. `TotalCharges` tinha correlação 0.826 com tenure — resolvido na etapa de feature engineering (removida; tenure substituída por log_tenure).
 - [x] Etapa 2: `StratifiedKFold` obrigatório por spec — adicionado no `train.py` como CV no conjunto de treino (80%) + hold-out test separado (20%); fold-wise metrics logadas no MLflow com prefixo `fold{k}_*` e agregadas em `cv_*_mean/std`.
-- [x] Etapa 3: Flask app em `iac/flask-app/` é placeholder — a API real é FastAPI em `src/api/`. Modelo carregado do MLflow no startup (não baked na imagem) para permitir atualização via `/model/reload` sem redeploy. `--static-prefix /mlflow` no MLflow server desloca todos os endpoints para `/mlflow/*` — health check do ALB deve apontar para `/mlflow/health`, não `/health`.
+- [x] Etapa 3: Flask app em `iac/flask-app/` é placeholder — a API real é FastAPI em `src/api/`. Modelo carregado de `models/mlp_best.pt` no startup via lifespan. `--static-prefix /mlflow` no MLflow server desloca todos os endpoints para `/mlflow/*` — health check do ALB deve apontar para `/mlflow/health`, não `/health`.
 - [x] Etapa 4: Três workflows separados (tests, train, deploy) rodavam de forma independente e sem garantia de ordem — consolidados em `ci-cd.yml` com `needs:` e `dorny/paths-filter` para garantir que testes passem antes de treinar ou deployar, e que cada job só rode quando seus arquivos de interesse mudam.
